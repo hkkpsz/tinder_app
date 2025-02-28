@@ -23,7 +23,7 @@ class _HomePageState extends State<HomePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            Icon(Icons.hotel_class, color: Colors.red, size: 40),
+            Icon(Icons.hotel_class, color: Colors.red, size: 35),
             Text("Tinder", style: TextStyle(fontSize: 30)),
             IconButton(onPressed: () {}, icon: Icon(Ikon.list))
           ],

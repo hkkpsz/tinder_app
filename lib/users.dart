@@ -7,7 +7,6 @@ class User {
     required this.imagePath,
   });
 }
-
 final List<User> users = [
   User(
     name: "Recep",
