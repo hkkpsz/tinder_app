@@ -1,0 +1,37 @@
+import 'package:flutter/material.dart';
+import 'package:ucanble_tinder/login_page.dart';
+import 'package:ucanble_tinder/users.dart';  // users.dart'ı import et
+
+void main() async {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: ThemeData(
+          colorScheme: ColorScheme(
+            brightness: Brightness.light,
+            primary: Color.fromRGBO(230, 0, 255, 1.0),
+            onPrimary: Color.fromARGB(255, 138, 171, 255),
+            secondary: Color.fromARGB(255, 8, 22, 43),
+            onSecondary: Color.fromARGB(255, 65, 65, 67),
+            error: Color.fromARGB(255, 201, 0, 253),
+            onError: Color.fromARGB(255, 243, 243, 244),
+            surface: Colors.white,
+            onSurface: Colors.black87,
+          )
+      ),
+      debugShowCheckedModeBanner: false,
+      home: LoginPage(),
+    );
+  }
+}
