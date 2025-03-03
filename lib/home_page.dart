@@ -23,9 +23,9 @@ class _HomePageState extends State<HomePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            Icon(Icons.hotel_class, color: Colors.red, size: 35),
+            Icon(Ikon.think_peaks, color: Colors.red, size: 35),
             Text("Tinder", style: TextStyle(fontSize: 30)),
-            IconButton(onPressed: () {}, icon: Icon(Ikon.list))
+            IconButton(onPressed: () {}, icon: Icon(Ikon.list)),
           ],
         ),
       ),
@@ -34,21 +34,46 @@ class _HomePageState extends State<HomePage> {
         children: [
           Center(
             child: SizedBox(
-              height: 600,
-              width: 350,
               child: Swiper(
                 controller: _swiperController,
-                itemCount: users.length, // users listesine göre item count
+                itemCount: users.length, // users.list direkt kullanıyoruz
+                layout: SwiperLayout.TINDER,
+                itemWidth: 350,
+                itemHeight: 600,
+                scale: 0.9,
+                fade: 0.3,
                 itemBuilder: (context, index) {
                   return Container(
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                          image: AssetImage(users[index].imagePath), fit: BoxFit.cover),
-                      borderRadius: BorderRadius.circular(40),
+                        image: AssetImage(users[index].imagePath),
+                        fit: BoxFit.cover,
+                      ),
+                      borderRadius: BorderRadius.circular(40), // Yumuşak köşeler
                       boxShadow: [
                         BoxShadow(
-                            color: Colors.black26, blurRadius: 4, spreadRadius: 5)
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          spreadRadius: 1, // Hafif gölge
+                        ),
                       ],
+                      gradient: LinearGradient(
+                        colors: [Colors.transparent, Colors.black], // Opaklığı azalt
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: [0.7, 1], // Alt kısımda solma
+                      ),
+                    ),
+                    child: Container(
+                      padding: EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          Spacer(),
+                          buildName(users[index]),
+                          const SizedBox(height: 8),
+                          buildStatus(),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -62,26 +87,28 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Container(
-            width: 350,
+            width:   50,
             decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(50),
-                border: Border.all(width: 3)
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(50),
+              border: Border.all(width: 3),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 IconButton(
                   onPressed: () {
-                    _swiperController.next(); // SAĞA (BEĞEN) KAYDIRMA
-                    print("Kart reddedildi ❌");
+                    // Kartı sola kaydırma işlemi
+                    _swiperController.previous(); // Sola kaydır
+                    print("Kart sola kaydırıldı ❌");
                   },
                   icon: Icon(Icons.close, size: 50, color: Colors.red),
                 ),
                 IconButton(
                   onPressed: () {
-                    _swiperController.next(); // SOLA (REDDET) KAYDIRMA
-                    print("Kart beğenildi ❤️");
+                    // Kartı sağa kaydırma işlemi
+                    _swiperController.next(); // Sağa kaydır
+                    print("Kart sağa kaydırıldı ❤️");
                   },
                   icon: Icon(Ikon.heart, size: 50, color: Colors.red),
                 ),
@@ -116,4 +143,35 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+  Widget buildName(User user) => Row(
+    children: [
+      Text(
+        user.name ?? 'Bilgi Yok', // Eğer name null ise 'Bilgi Yok' yazsın
+        style: TextStyle(
+          fontSize: 32,
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      SizedBox(width: 16),
+      // 'user.age' null olursa 0 gösterilsin
+      Text(
+        user.age != null ? '${user.age}' : '0', // null kontrolü ekleniyor
+        style: TextStyle(fontSize: 32, color: Colors.white),
+      ),
+    ],
+  );
+
+  Widget buildStatus() => Row(
+    children: [
+      Container(
+        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.green),
+        width: 12,
+        height: 12,
+      ),
+      SizedBox(width: 12),
+      Text("Çevrimiçi", style: TextStyle(fontSize: 20, color: Colors.white)),
+    ],
+  );
 }

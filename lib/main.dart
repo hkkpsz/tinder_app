@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/login_page.dart';
-import 'package:ucanble_tinder/users.dart';  // users.dart'ı import et
+import 'users.dart';
 
 void main() async {
   runApp(const MyApp());
