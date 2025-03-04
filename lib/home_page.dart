@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:card_swiper/card_swiper.dart';
 import 'package:scrumlab_flutter_tindercard/scrumlab_flutter_tindercard.dart';
+import 'package:ucanble_tinder/discover_page.dart';
+import 'package:ucanble_tinder/match_page.dart';
+import 'package:ucanble_tinder/message_page.dart';
 import 'package:ucanble_tinder/profile_detail.dart';
-import 'package:ucanble_tinder/search_page.dart';
 import 'package:ucanble_tinder/selection_page.dart';
 import 'users.dart';
 import 'package:ucanble_tinder/ikon_icons.dart';
@@ -139,29 +141,65 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.home, size: 40, color: Colors.black),
+            Column(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DiscoverPage()),
+                    );
+                  },
+                  icon: Icon(Ikon.star_half_alt, size: 40, color: Colors.black),
+                ),
+                Text("Keşfet")
+              ],
             ),
-            IconButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SearchPage()),
-                );
-              },
-              icon: Icon(Icons.search, size: 40, color: Colors.black),
+            Column(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MatchPage()),
+                    );
+                  },
+                  icon: Icon(Ikon.users, size: 40, color: Colors.black),
+                ),
+                Text("Eşleş")
+              ],
             ),
-            IconButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileDetail(),
-                  ),
-                );
-              },
-              icon: Icon(Icons.person, size: 40, color: Colors.black),
+            Column(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MessagePage(),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.message, size: 40, color: Colors.black),
+                ),
+                Text("Sohbet")
+              ],
+            ),
+            Column(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfileDetail(),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.person, size: 40, color: Colors.black),
+                ),
+                Text("Profil")
+              ],
             ),
           ],
         ),
