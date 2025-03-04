@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:card_swiper/card_swiper.dart';
+import 'package:ucanble_tinder/profile_detail.dart';
+import 'package:ucanble_tinder/search_page.dart';
+import 'package:ucanble_tinder/selection_page.dart';
 import 'users.dart';
 import 'package:ucanble_tinder/ikon_icons.dart';
 
@@ -25,7 +28,8 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(Ikon.think_peaks, color: Colors.red, size: 35),
             Text("Tinder", style: TextStyle(fontSize: 30)),
-            IconButton(onPressed: () {}, icon: Icon(Ikon.list)),
+            IconButton(onPressed: () { Navigator.push(context,
+                MaterialPageRoute(builder: (context) => const SelectionPage()));}, icon: Icon(Ikon.list)),
           ],
         ),
       ),
@@ -34,34 +38,39 @@ class _HomePageState extends State<HomePage> {
         children: [
           Center(
             child: SizedBox(
+              height: 600,
+              width: 350,
               child: Swiper(
                 controller: _swiperController,
-                itemCount: users.length, // users.list direkt kullanıyoruz
-                layout: SwiperLayout.TINDER,
-                itemWidth: 350,
-                itemHeight: 600,
-                scale: 0.9,
-                fade: 0.3,
+                itemCount: users.length,  // Kullanıcıların listesi
+                layout: SwiperLayout.TINDER,  // TINDER düzeniyle daha doğal bir kaydırma animasyonu
+                itemWidth: 350,  // Kartın genişliği
+                itemHeight: 600,  // Kartın yüksekliği
+                scale: 0.9,  // Kartların biraz daha küçük olmasını sağlıyoruz
+                fade: 0.3,  // Kartların yavaşça solmasını sağlıyoruz
+                onIndexChanged: (index) {
+                  print("Şu an gösterilen kart: $index");
+                },
                 itemBuilder: (context, index) {
                   return Container(
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage(users[index].imagePath),
+                        image: AssetImage(users[index].imagePath),  // Kullanıcı fotoğrafı
                         fit: BoxFit.cover,
                       ),
-                      borderRadius: BorderRadius.circular(40), // Yumuşak köşeler
+                      borderRadius: BorderRadius.circular(40),  // Yumuşak köşeler
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black26,
                           blurRadius: 4,
-                          spreadRadius: 1, // Hafif gölge
+                          spreadRadius: 1,  // Hafif gölge
                         ),
                       ],
                       gradient: LinearGradient(
-                        colors: [Colors.transparent, Colors.black], // Opaklığı azalt
+                        colors: [Colors.transparent, Colors.black],  // Alt kısmı daha karanlık yapıyoruz
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        stops: [0.7, 1], // Alt kısımda solma
+                        stops: [0.7, 1],  // Alt kısımda solma efekti
                       ),
                     ),
                     child: Container(
@@ -69,25 +78,20 @@ class _HomePageState extends State<HomePage> {
                       child: Column(
                         children: [
                           Spacer(),
-                          buildName(users[index]),
+                          buildName(users[index]),  // Kullanıcı adı ve yaşını gösteren widget
                           const SizedBox(height: 8),
-                          buildStatus(),
+                          buildStatus(),  // Çevrimiçi durumunu gösteren widget
                         ],
                       ),
                     ),
                   );
                 },
-                onIndexChanged: (index) {
-                  print("Şu an gösterilen kart: $index");
-                },
-                onTap: (index) {
-                  print("Kart $index tıklandı.");
-                },
-              ),
+              )
+
             ),
           ),
           Container(
-            width:   50,
+            width:   300,
             decoration: BoxDecoration(
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(50),
@@ -99,7 +103,7 @@ class _HomePageState extends State<HomePage> {
                 IconButton(
                   onPressed: () {
                     // Kartı sola kaydırma işlemi
-                    _swiperController.previous(); // Sola kaydır
+                    _swiperController.next(); // Sola kaydır
                     print("Kart sola kaydırıldı ❌");
                   },
                   icon: Icon(Icons.close, size: 50, color: Colors.red),
@@ -107,7 +111,7 @@ class _HomePageState extends State<HomePage> {
                 IconButton(
                   onPressed: () {
                     // Kartı sağa kaydırma işlemi
-                    _swiperController.next(); // Sağa kaydır
+                    _swiperController.previous(); // Sağa kaydır
                     print("Kart sağa kaydırıldı ❤️");
                   },
                   icon: Icon(Ikon.heart, size: 50, color: Colors.red),
@@ -120,7 +124,7 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: Container(
         height: 80,
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: Colors.transparent,
           border: Border(top: BorderSide(color: Colors.black, width: 2)),
         ),
         child: Row(
@@ -128,15 +132,21 @@ class _HomePageState extends State<HomePage> {
           children: [
             IconButton(
               onPressed: () {},
-              icon: Icon(Icons.home, size: 35, color: Colors.white),
+              icon: Icon(Icons.home, size: 40, color: Colors.black),
             ),
             IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.search, size: 35, color: Colors.white),
+              onPressed: () {
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => const SearchPage()));
+              },
+              icon: Icon(Icons.search, size: 40, color: Colors.black),
             ),
             IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.person, size: 35, color: Colors.white),
+              onPressed: () {
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => const ProfileDetail()));
+              },
+              icon: Icon(Icons.person, size: 40, color: Colors.black),
             ),
           ],
         ),
