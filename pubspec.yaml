@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_card_swiper: ^7.0.2
   card_swiper: ^3.0.1
+  scrumlab_flutter_tindercard: ^1.2.0
 
 dev_dependencies:
   flutter_test:

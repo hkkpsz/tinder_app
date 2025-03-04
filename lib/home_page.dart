@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:card_swiper/card_swiper.dart';
+import 'package:scrumlab_flutter_tindercard/scrumlab_flutter_tindercard.dart';
 import 'package:ucanble_tinder/profile_detail.dart';
 import 'package:ucanble_tinder/search_page.dart';
 import 'package:ucanble_tinder/selection_page.dart';
@@ -28,8 +29,17 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(Ikon.think_peaks, color: Colors.red, size: 35),
             Text("Tinder", style: TextStyle(fontSize: 30)),
-            IconButton(onPressed: () { Navigator.push(context,
-                MaterialPageRoute(builder: (context) => const SelectionPage()));}, icon: Icon(Ikon.list)),
+            IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SelectionPage(),
+                  ),
+                );
+              },
+              icon: Icon(Ikon.list),
+            ),
           ],
         ),
       ),
@@ -40,58 +50,57 @@ class _HomePageState extends State<HomePage> {
             child: SizedBox(
               height: 600,
               width: 350,
-              child: Swiper(
-                controller: _swiperController,
-                itemCount: users.length,  // Kullanıcıların listesi
-                layout: SwiperLayout.TINDER,  // TINDER düzeniyle daha doğal bir kaydırma animasyonu
-                itemWidth: 350,  // Kartın genişliği
-                itemHeight: 600,  // Kartın yüksekliği
-                scale: 0.9,  // Kartların biraz daha küçük olmasını sağlıyoruz
-                fade: 0.3,  // Kartların yavaşça solmasını sağlıyoruz
-                onIndexChanged: (index) {
-                  print("Şu an gösterilen kart: $index");
+              child: TinderSwapCard(
+                swipeUp: true,
+                swipeDown: true,
+                orientation: AmassOrientation.bottom,
+                totalNum: users.length,
+                stackNum: 2,
+                swipeEdge: 4.0,
+                maxHeight:
+                MediaQuery.of(context).size.height *
+                    0.8, // Ekran boyutuna göre dinamik
+                maxWidth:
+                MediaQuery.of(context).size.width *
+                    0.8, // Ekran boyutuna göre dinamik
+                minWidth:
+                MediaQuery.of(context).size.width *
+                    0.7, // Ekran boyutuna göre dinamik
+                minHeight:
+                MediaQuery.of(context).size.height *
+                    0.7, // Ekran boyutuna göre dinamik
+                cardBuilder:
+                    (context, index) => Card(
+                  child: Image.asset(
+                    users[index].imagePath,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                swipeUpdateCallback: (
+                    DragUpdateDetails details,
+                    Alignment align,
+                    ) {
+                  if (align.x < 0) {
+                    print("Kart sola kaydırılıyor ❌");
+                  } else if (align.x > 0) {
+                    print("Kart sağa kaydırılıyor ❤️");
+                  }
                 },
-                itemBuilder: (context, index) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage(users[index].imagePath),  // Kullanıcı fotoğrafı
-                        fit: BoxFit.cover,
-                      ),
-                      borderRadius: BorderRadius.circular(40),  // Yumuşak köşeler
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 4,
-                          spreadRadius: 1,  // Hafif gölge
-                        ),
-                      ],
-                      gradient: LinearGradient(
-                        colors: [Colors.transparent, Colors.black],  // Alt kısmı daha karanlık yapıyoruz
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        stops: [0.7, 1],  // Alt kısımda solma efekti
-                      ),
-                    ),
-                    child: Container(
-                      padding: EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          Spacer(),
-                          buildName(users[index]),  // Kullanıcı adı ve yaşını gösteren widget
-                          const SizedBox(height: 8),
-                          buildStatus(),  // Çevrimiçi durumunu gösteren widget
-                        ],
-                      ),
-                    ),
-                  );
+                swipeCompleteCallback: (
+                    CardSwipeOrientation orientation,
+                    int index,
+                    ) {
+                  if (orientation == CardSwipeOrientation.right) {
+                    print("Kart sağa kaydırıldı ❤️");
+                  } else if (orientation == CardSwipeOrientation.left) {
+                    print("Kart sola kaydırıldı ❌");
+                  }
                 },
-              )
-
+              ),
             ),
           ),
           Container(
-            width:   300,
+            width: 300,
             decoration: BoxDecoration(
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(50),
@@ -103,7 +112,7 @@ class _HomePageState extends State<HomePage> {
                 IconButton(
                   onPressed: () {
                     // Kartı sola kaydırma işlemi
-                    _swiperController.next(); // Sola kaydır
+                    _swiperController.previous(); // Kartı sola kaydır
                     print("Kart sola kaydırıldı ❌");
                   },
                   icon: Icon(Icons.close, size: 50, color: Colors.red),
@@ -111,7 +120,7 @@ class _HomePageState extends State<HomePage> {
                 IconButton(
                   onPressed: () {
                     // Kartı sağa kaydırma işlemi
-                    _swiperController.previous(); // Sağa kaydır
+                    _swiperController.next(); // Kartı sağa kaydır
                     print("Kart sağa kaydırıldı ❤️");
                   },
                   icon: Icon(Ikon.heart, size: 50, color: Colors.red),
@@ -136,15 +145,21 @@ class _HomePageState extends State<HomePage> {
             ),
             IconButton(
               onPressed: () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => const SearchPage()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SearchPage()),
+                );
               },
               icon: Icon(Icons.search, size: 40, color: Colors.black),
             ),
             IconButton(
               onPressed: () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => const ProfileDetail()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileDetail(),
+                  ),
+                );
               },
               icon: Icon(Icons.person, size: 40, color: Colors.black),
             ),

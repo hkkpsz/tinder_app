@@ -155,6 +155,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
+  scrumlab_flutter_tindercard:
+    dependency: "direct main"
+    description:
+      name: scrumlab_flutter_tindercard
+      sha256: d94bb0487e6e10c3222006eec8cd63a20763e88feed2e8f9c4d3c86dd62a0dd5
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
   sky_engine:
     dependency: transitive
     description: flutter
