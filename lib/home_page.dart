@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:card_swiper/card_swiper.dart';
 import 'package:scrumlab_flutter_tindercard/scrumlab_flutter_tindercard.dart';
-import 'package:ucanble_tinder/discover_page.dart';
 import 'package:ucanble_tinder/match_page.dart';
 import 'package:ucanble_tinder/message_page.dart';
 import 'package:ucanble_tinder/profile_detail.dart';
@@ -136,21 +135,27 @@ class _HomePageState extends State<HomePage> {
         height: 80,
         decoration: BoxDecoration(
           color: Colors.transparent,
-          border: Border(top: BorderSide(color: Colors.black, width: 2)),
+          border: Border(top: BorderSide(color: Colors.orangeAccent, width: 1)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             Column(
               children: [
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const DiscoverPage()),
-                    );
-                  },
-                  icon: Icon(Ikon.star_half_alt, size: 40, color: Colors.black),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(100),
+                    color: Colors.orangeAccent
+                  ),
+                  child: IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const HomePage()),
+                      );
+                    },
+                    icon: Icon(Ikon.star_half_alt, size: 40, color: Colors.black),
+                  ),
                 ),
                 Text("Keşfet")
               ],
@@ -164,7 +169,7 @@ class _HomePageState extends State<HomePage> {
                       MaterialPageRoute(builder: (context) => const MatchPage()),
                     );
                   },
-                  icon: Icon(Ikon.users, size: 40, color: Colors.black),
+                  icon: Icon(Icons.people_rounded, size: 40, color: Colors.black),
                 ),
                 Text("Eşleş")
               ],

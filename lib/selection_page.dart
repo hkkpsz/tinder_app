@@ -11,7 +11,14 @@ class _selectionPageState extends State<SelectionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Selection Page"),),
+        appBar: AppBar(
+            title: Text(
+                "Selection Page"
+            ),
+        ),
+      body: Center(
+        child: Text("Selection"),
+      )
     );
   }
 }
