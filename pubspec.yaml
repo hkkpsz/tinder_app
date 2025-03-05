@@ -37,6 +37,9 @@ dependencies:
   flutter_card_swiper: ^7.0.2
   card_swiper: ^3.0.1
   scrumlab_flutter_tindercard: ^1.2.0
+  cloud_firestore: ^5.6.5
+  firebase_core: ^3.12.1
+  firebase_auth: ^5.5.1
 
 dev_dependencies:
   flutter_test:

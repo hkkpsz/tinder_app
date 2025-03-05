@@ -12,254 +12,169 @@ class SignUp extends StatefulWidget {
 class _SignUpState extends State<SignUp> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _adController = TextEditingController();
   final TextEditingController _soyadController = TextEditingController();
-  final FocusNode _emailFocusNode = FocusNode(); // FocusNode for email field
-  final FocusNode _passwordFocusNode = FocusNode();// FocusNode for password field
-  final FocusNode _adFocusNode = FocusNode();
-  final FocusNode _soyadFocusNode = FocusNode();
+  String? _passwordError;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _emailFocusNode.dispose(); // Dispose of the FocusNode
-    _passwordFocusNode.dispose(); // Dispose of the FocusNode
+    _confirmPasswordController.dispose();
+    _adController.dispose();
+    _soyadController.dispose();
     super.dispose();
   }
+
+  void _validatePasswords() {
+    setState(() {
+      _passwordError = _passwordController.text != _confirmPasswordController.text
+          ? "Şifreler eşleşmiyor"
+          : null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: colorScheme.onSecondary,
-      // appBar: AppBar(
-      //   backgroundColor: colorScheme.primary,
-      //   title: const Text(
-      //     "AIchatter",
-      //     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
-      //   ),
-      //   centerTitle: true,
-      //   elevation: 5,
-      //   shadowColor: colorScheme.secondary,
-      // ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme
-                          .secondary, // Gölge rengini ayarlayabilirsiniz
-                      spreadRadius: 5, // Gölgenin yayılma miktarı
-                      blurRadius: 15, // Gölgenin bulanıklık miktarı
-                    ),
-                  ],
-                ),
-                child: Image.asset(
-                  'assets/images/ucanble.png',
-                  width: 300,
-                  height: 100,
-                ),
-              ),
-            ),
-            const SizedBox(height: 40),
-            Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 50,
-                      width: 191,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            blurStyle: BlurStyle.normal,
-                            color: colorScheme.secondary,
-                            blurRadius: 20,
-                            spreadRadius: 2,
-                          ),
-                          BoxShadow(
-                            blurStyle: BlurStyle.normal,
-                            color: colorScheme.secondary,
-                            blurRadius: 50,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: TextField(
-                        focusNode: _adFocusNode, // Attach FocusNode
-                        controller: _adController,
-                        decoration: InputDecoration(
-                          hintText: "Ad",
-                          prefixIcon: Icon(Icons.person, color: Colors.grey),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding:
-                          EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 25,),
-                    Container(
-                      height: 50,
-                      width: 191,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            blurStyle: BlurStyle.normal,
-                            color: colorScheme.secondary,
-                            blurRadius: 20,
-                            spreadRadius: 2,
-                          ),
-                          BoxShadow(
-                            blurStyle: BlurStyle.normal,
-                            color: colorScheme.secondary,
-                            blurRadius: 50,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: TextField(
-                        focusNode: _soyadFocusNode, // Attach FocusNode
-                        controller: _soyadController,
-                        decoration: InputDecoration(
-                          hintText: "Soyad",
-                          prefixIcon: Icon(Icons.perm_contact_calendar, color: Colors.grey),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding:
-                          EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 25),
-                Container(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
                     boxShadow: [
                       BoxShadow(
-                        blurStyle: BlurStyle.normal,
                         color: colorScheme.secondary,
-                        blurRadius: 20,
-                        spreadRadius: 2,
-                      ),
-                      BoxShadow(
-                        blurStyle: BlurStyle.normal,
-                        color: colorScheme.secondary,
-                        blurRadius: 50,
-                        spreadRadius: 2,
+                        spreadRadius: 5,
+                        blurRadius: 15,
                       ),
                     ],
                   ),
-                  child: TextField(
-                    focusNode: _emailFocusNode, // Attach FocusNode
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      hintText: "E-posta",
-                      prefixIcon: Icon(Icons.email, color: Colors.grey),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding:
-                      EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                    ),
+                  child: Image.asset(
+                    'assets/images/ucanble.png',
+                    width: 300,
+                    height: 100,
                   ),
                 ),
-
-                const SizedBox(height: 25),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
+              ),
+              const SizedBox(height: 40),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _adController,
+                      hintText: "Ad",
+                      icon: Icons.person,
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _soyadController,
+                      hintText: "Soyad",
+                      icon: Icons.perm_contact_calendar,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 25),
+              _buildTextField(controller: _emailController, hintText: "E-posta", icon: Icons.email),
+              const SizedBox(height: 25),
+              _buildTextField(controller: _passwordController, hintText: "Şifre", icon: Icons.lock, obscureText: true),
+              const SizedBox(height: 25),
+              _buildTextField(controller: _confirmPasswordController, hintText: "Şifre Tekrar", icon: Icons.lock, obscureText: true),
+              if (_passwordError != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(
+                    _passwordError!,
+                    style: const TextStyle(color: Colors.red, fontSize: 14, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              SizedBox(height: 15,),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 18),
+                  shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        blurStyle: BlurStyle.normal,
-                        color: colorScheme.secondary,
-                        blurRadius: 20,
-                        spreadRadius: 2,
-                      ),
-                      BoxShadow(
-                        blurStyle: BlurStyle.normal,
-                        color: colorScheme.secondary,
-                        blurRadius: 50,
-                        spreadRadius: 2,
-                      ),
-                    ],
                   ),
-                  child: TextField(
-                    focusNode: _passwordFocusNode, // FocusNode eklendi
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      hintText: "Şifre",
-                      prefixIcon: Icon(Icons.lock, color: Colors.grey),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                    ),
-                  ),
+                  elevation: 5,
+                  shadowColor: colorScheme.secondary,
                 ),
-              ],
-            ),
-            const SizedBox(height: 35),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding:
-                const EdgeInsets.symmetric(horizontal: 50, vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+                onPressed: () {
+                  _validatePasswords();
+                  if (_passwordError == null) {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const HomePage()));
+                  }
+                },
+                child: const Text(
+                  "Kayıt ol",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                elevation: 5,
-                shadowColor: colorScheme.secondary,
               ),
-              onPressed: () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => const HomePage()));
-              },
-              child: const Text(
-                "Kayıt ol",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            SizedBox(height: 15,),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context,
-                    MaterialPageRoute(builder: (context) => const LoginPage()));
-              },
-              child: Container(
-                child: Text(
+              const SizedBox(height: 15),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context, MaterialPageRoute(builder: (context) => const LoginPage()));
+                },
+                child: const Text(
                   "Hesabınız Var mı?\nGiriş Yapmak İçin Tıklayınız.",
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: Colors.white
-                  ),
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    bool obscureText = false,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.secondary,
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+          BoxShadow(
+            color: colorScheme.secondary,
+            blurRadius: 50,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: Icon(icon, color: Colors.grey),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         ),
       ),
     );

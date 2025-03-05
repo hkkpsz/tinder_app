@@ -29,6 +29,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: colorScheme.onSecondary,
       // appBar: AppBar(
       //   backgroundColor: colorScheme.primary,
