@@ -20,7 +20,7 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(
           colorScheme: ColorScheme(
             brightness: Brightness.light,
-            primary: Color.fromRGBO(230, 0, 255, 1.0),
+            primary: Color.fromRGBO(122, 121, 122, 1.0),
             onPrimary: Color.fromARGB(255, 138, 171, 255),
             secondary: Color.fromARGB(255, 8, 22, 43),
             onSecondary: Color.fromARGB(255, 65, 65, 67),

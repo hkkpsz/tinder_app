@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/home_page.dart';
+import 'package:ucanble_tinder/sign_up.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -50,8 +51,7 @@ class _LoginPageState extends State<LoginPage> {
                 decoration: BoxDecoration(
                   boxShadow: [
                     BoxShadow(
-                      color: colorScheme
-                          .secondary, // Gölge rengini ayarlayabilirsiniz
+                      color: colorScheme.secondary, // Gölge rengini ayarlayabilirsiniz
                       spreadRadius: 5, // Gölgenin yayılma miktarı
                       blurRadius: 15, // Gölgenin bulanıklık miktarı
                     ),
@@ -157,7 +157,22 @@ class _LoginPageState extends State<LoginPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
-
+            SizedBox(height: 15,),
+            TextButton(
+              onPressed: () {
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => const SignUp()));
+              },
+              child: Container(
+                child: Text(
+                  "Hesabınız Yok mu?\nKayıt Olmak İçin Tıklayınız.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
