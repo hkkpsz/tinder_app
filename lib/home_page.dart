@@ -16,7 +16,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final SwiperController _swiperController = SwiperController();
+  final CardController _cardController = CardController();
 
   @override
   Widget build(BuildContext context) {
@@ -58,39 +58,57 @@ class _HomePageState extends State<HomePage> {
                 totalNum: users.length,
                 stackNum: 2,
                 swipeEdge: 4.0,
-                maxHeight:
-                MediaQuery.of(context).size.height *
-                    0.8, // Ekran boyutuna göre dinamik
-                maxWidth:
-                MediaQuery.of(context).size.width *
-                    0.8, // Ekran boyutuna göre dinamik
-                minWidth:
-                MediaQuery.of(context).size.width *
-                    0.7, // Ekran boyutuna göre dinamik
-                minHeight:
-                MediaQuery.of(context).size.height *
-                    0.7, // Ekran boyutuna göre dinamik
-                cardBuilder:
-                    (context, index) => Card(
-                  child: Image.asset(
-                    users[index].imagePath,
-                    fit: BoxFit.cover,
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                maxWidth: MediaQuery.of(context).size.width * 0.8,
+                minWidth: MediaQuery.of(context).size.width * 0.7,
+                minHeight: MediaQuery.of(context).size.height * 0.7,
+                cardController: _cardController,
+                cardBuilder: (context, index) => Card(
+                  child: Stack(
+                    children: [
+                      Image.asset(
+                        users[index].imagePath,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                Colors.black.withOpacity(0.7),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              buildName(users[index]),
+                              SizedBox(height: 5),
+                              buildStatus(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                swipeUpdateCallback: (
-                    DragUpdateDetails details,
-                    Alignment align,
-                    ) {
+                swipeUpdateCallback: (DragUpdateDetails details, Alignment align) {
                   if (align.x < 0) {
                     print("Kart sola kaydırılıyor ❌");
                   } else if (align.x > 0) {
                     print("Kart sağa kaydırılıyor ❤️");
                   }
                 },
-                swipeCompleteCallback: (
-                    CardSwipeOrientation orientation,
-                    int index,
-                    ) {
+                swipeCompleteCallback: (CardSwipeOrientation orientation, int index) {
                   if (orientation == CardSwipeOrientation.right) {
                     print("Kart sağa kaydırıldı ❤️");
                   } else if (orientation == CardSwipeOrientation.left) {
@@ -112,16 +130,14 @@ class _HomePageState extends State<HomePage> {
               children: [
                 IconButton(
                   onPressed: () {
-                    // Kartı sola kaydırma işlemi
-                    _swiperController.previous(); // Kartı sola kaydır
+                    _cardController.triggerLeft();
                     print("Kart sola kaydırıldı ❌");
                   },
                   icon: Icon(Icons.close, size: 50, color: Colors.red),
                 ),
                 IconButton(
                   onPressed: () {
-                    // Kartı sağa kaydırma işlemi
-                    _swiperController.next(); // Kartı sağa kaydır
+                    _cardController.triggerRight();
                     print("Kart sağa kaydırıldı ❤️");
                   },
                   icon: Icon(Ikon.heart, size: 50, color: Colors.red),
@@ -144,12 +160,12 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(100),
-                    color: Colors.orangeAccent
+                      borderRadius: BorderRadius.circular(100),
+                      color: Colors.orangeAccent
                   ),
                   child: IconButton(
                     onPressed: () {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => const HomePage()),
                       );
@@ -211,11 +227,10 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  Widget buildName(User user) => Row(
+Widget buildName(User user) => Row(
     children: [
       Text(
-        user.name ?? 'Bilgi Yok', // Eğer name null ise 'Bilgi Yok' yazsın
+        user.name ?? 'Bilgi Yok',
         style: TextStyle(
           fontSize: 32,
           color: Colors.white,

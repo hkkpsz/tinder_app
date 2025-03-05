@@ -34,7 +34,7 @@ class _MessagePageState extends State<MessagePage> {
               children: [
                 IconButton(
                     onPressed: () {
-                      Navigator.push(
+                      Navigator.pop(
                         context,
                         MaterialPageRoute(builder: (context) => const HomePage()),
                       );
@@ -67,7 +67,7 @@ class _MessagePageState extends State<MessagePage> {
                   ),
                   child: IconButton(
                     onPressed: () {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (context) => const MessagePage(),

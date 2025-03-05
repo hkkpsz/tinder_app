@@ -32,7 +32,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
               children: [
                 IconButton(
                   onPressed: () {
-                    Navigator.push(
+                    Navigator.pop(
                       context,
                       MaterialPageRoute(builder: (context) => const HomePage()),
                     );
@@ -81,7 +81,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
                   ),
                   child: IconButton(
                     onPressed: () {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (context) => const ProfileDetail(),

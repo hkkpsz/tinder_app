@@ -20,7 +20,25 @@ class _MatchPageState extends State<MatchPage> {
                 "Match Page"
             ),
         ),
-      body: Center(),
+      body: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+                color: Colors.orangeAccent
+            ),
+            width: 170,
+            height: 220,
+          ),
+          Container(
+            decoration: BoxDecoration(
+                color: Colors.orangeAccent
+            ),
+            width: 170,
+            height: 220,
+          ),
+        ],
+      ),
       bottomNavigationBar: Container(
         height: 80,
         decoration: BoxDecoration(
@@ -34,7 +52,7 @@ class _MatchPageState extends State<MatchPage> {
               children: [
                   IconButton(
                     onPressed: () {
-                      Navigator.push(
+                      Navigator.pop(
                         context,
                         MaterialPageRoute(builder: (context) => const HomePage()),
                       );
@@ -54,7 +72,7 @@ class _MatchPageState extends State<MatchPage> {
                   alignment: Alignment.center, // İkonu container'ın tam ortasına yerleştir
                   child: IconButton(
                     onPressed: () {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => const MatchPage()),
                       );
