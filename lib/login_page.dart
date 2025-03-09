@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/home_page.dart';
 import 'package:ucanble_tinder/sign_up.dart';
+import 'package:ucanble_tinder/services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -24,6 +26,26 @@ class _LoginPageState extends State<LoginPage> {
     _passwordFocusNode.dispose(); // Dispose of the FocusNode
     super.dispose();
   }
+
+
+  @override
+  void _signIn() async {
+    AuthService authService = AuthService();
+    User? user = await authService.signInWithEmail(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+    );
+
+    if (user != null) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Giriş başarısız! E-posta veya şifre yanlış.")),
+      );
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -149,10 +171,7 @@ class _LoginPageState extends State<LoginPage> {
                 elevation: 5,
                 shadowColor: colorScheme.secondary,
               ),
-              onPressed: () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => const HomePage()));
-              },
+              onPressed: _signIn,
               child: const Text(
                 "Giriş Yap",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),

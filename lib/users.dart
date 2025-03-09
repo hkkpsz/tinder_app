@@ -35,5 +35,20 @@ final List<User> users = [
     age: 67,
     imagePath: "assets/images/fatih.png",
   ),
+  User(
+    name: "Alperen",
+    age: 21,
+    imagePath: "assets/images/alperen.png",
+  ),
+  User(
+    name: "Hakkı",
+    age: 20,
+    imagePath: "assets/images/hakki.png",
+  ),
+  User(
+    name: "Kayra",
+    age: 21,
+    imagePath: "assets/images/kayra.png",
+  )
 ];
 

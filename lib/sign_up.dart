@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/home_page.dart';
 import 'login_page.dart';
+import 'package:ucanble_tinder/services/auth_service.dart';
+
 
 class SignUp extends StatefulWidget {
   const SignUp({super.key});
@@ -18,6 +20,29 @@ class _SignUpState extends State<SignUp> {
   String? _passwordError;
 
   @override
+
+  void _signUp() async {
+    _validatePasswords();
+    if (_passwordError != null) return;
+
+    AuthService authService = AuthService();
+    var user = await authService.signUpWithEmail(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+      _adController.text.trim(),
+      _soyadController.text.trim(),
+    );
+
+    if (user != null) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Kayıt işlemi başarısız!")),
+      );
+    }
+  }
+
+
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -111,14 +136,9 @@ class _SignUpState extends State<SignUp> {
                   elevation: 5,
                   shadowColor: colorScheme.secondary,
                 ),
-                onPressed: () {
-                  _validatePasswords();
-                  if (_passwordError == null) {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const HomePage()));
-                  }
-                },
+                onPressed: _signUp,
                 child: const Text(
-                  "Kayıt ol",
+                  "Kayıt Ol",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
