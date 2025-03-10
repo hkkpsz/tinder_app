@@ -80,12 +80,15 @@ class _HomePageState extends State<HomePage> {
                 cardBuilder: (context, index) => Card(
                   child: Stack(
                     children: [
-                      Image.asset(
-                        users[index].imagePath, // Firestore'dan çekilen resim
+                      Image.network(
+                        users[index].imagePath.isNotEmpty
+                            ? users[index].imagePath
+                            : 'https://i.pinimg.com/736x/7f/fe/dd/7ffeddc67d1fa80080c0a1377faa9690.jpg', // Burada default bir görsel URL'si koymalısın
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
                       ),
+
                       Align(
                         alignment: Alignment.bottomCenter,
                         child: Container(
@@ -105,6 +108,7 @@ class _HomePageState extends State<HomePage> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Kullanıcı adını Firestore'dan çekiyorsunuz, o kısmı değiştirmedim
                               buildName(users[index]),
                               SizedBox(height: 5),
                               buildStatus(),
@@ -160,6 +164,84 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: Container(
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          border: Border(top: BorderSide(color: Colors.orangeAccent, width: 1)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.orangeAccent,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: IconButton(
+                    onPressed: () {
+                      Navigator.pop(
+                        context,
+                        MaterialPageRoute(builder: (context) => const HomePage()),
+                      );
+                    },
+                    icon: Icon(Ikon.star_half_alt, size: 40, color: Colors.black),
+                  ),
+                ),
+                Text("Keşfet")
+              ],
+            ),
+            Column(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MatchPage()),
+                    );
+                  },
+                  icon: Icon(Icons.people_rounded, size: 40, color: Colors.black),
+                ),
+                Text("Eşleş")
+              ],
+            ),
+            Column(
+              children: [
+                IconButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MessagePage(),
+                        ),
+                      );
+                    },
+                    icon: Icon(Icons.message, size: 40, color: Colors.black),
+                  ),
+                Text("Sohbet")
+              ],
+            ),
+            Column(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfileDetail(),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.person, size: 40, color: Colors.black),
+                ),
+                Text("Profil")
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:ucanble_tinder/login_page.dart';
-import 'users.dart';
+import 'package:ucanble_tinder/home_page.dart';
+import 'login_page.dart';
+import 'upload_image.dart'; // Buraya yeni sayfayı ekliyoruz
 import 'package:firebase_core/firebase_core.dart';
 import 'services/firebase_options.dart';
 
@@ -37,7 +38,7 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      home: LoginPage(),
+      home: HomePage(),
     );
   }
 }
