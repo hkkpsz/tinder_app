@@ -16,7 +16,7 @@ class _SignUpState extends State<SignUp> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _adController = TextEditingController();
-  final TextEditingController _soyadController = TextEditingController();
+  final TextEditingController _yasController = TextEditingController();
   String? _passwordError;
 
   @override
@@ -30,7 +30,7 @@ class _SignUpState extends State<SignUp> {
       _emailController.text.trim(),
       _passwordController.text.trim(),
       _adController.text.trim(),
-      _soyadController.text.trim(),
+      _yasController.text.trim(),
     );
 
     if (user != null) {
@@ -48,7 +48,7 @@ class _SignUpState extends State<SignUp> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _adController.dispose();
-    _soyadController.dispose();
+    _yasController.dispose();
     super.dispose();
   }
 
@@ -102,9 +102,9 @@ class _SignUpState extends State<SignUp> {
                   const SizedBox(width: 15),
                   Expanded(
                     child: _buildTextField(
-                      controller: _soyadController,
-                      hintText: "Soyad",
-                      icon: Icons.perm_contact_calendar,
+                      controller: _yasController,
+                      hintText: "Yaş",
+                      icon: Icons.date_range,
                     ),
                   ),
                 ],

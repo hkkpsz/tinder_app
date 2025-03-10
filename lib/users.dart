@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class User {
   final String name;
   final int age;
@@ -8,47 +10,21 @@ class User {
     required this.imagePath,
     required this.age,
   });
-}
-final List<User> users = [
-  User(
-    name: "Recep",
-    age: 49,
-    imagePath: "assets/images/recep.png",
-  ),
-  User(
-    name: "Müslüm",
-    age: 70,
-    imagePath: "assets/images/muslum.png",
-  ),
-  User(
-    name: "Dzeko",
-    age: 39,
-    imagePath: "assets/images/dzeko.png",
-  ),
-  User(
-    name: "Polat",
-    age: 28,
-    imagePath: "assets/images/polat.png",
-  ),
-  User(
-    name: "Fatih",
-    age: 67,
-    imagePath: "assets/images/fatih.png",
-  ),
-  User(
-    name: "Alperen",
-    age: 21,
-    imagePath: "assets/images/alperen.png",
-  ),
-  User(
-    name: "Hakkı",
-    age: 20,
-    imagePath: "assets/images/hakki.png",
-  ),
-  User(
-    name: "Kayra",
-    age: 21,
-    imagePath: "assets/images/kayra.png",
-  )
-];
 
+  // Firestore'dan çekilen veriyi User nesnesine dönüştüren metod
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      name: json['name'] ?? 'Bilinmeyen',
+      age: json['age'] ?? 0,
+      imagePath: json['imagePath'] ?? '',
+    );
+  }
+}
+
+// Kullanıcıları Firestore'dan çeken fonksiyon
+Future<List<User>> fetchUsers() async {
+  QuerySnapshot snapshot =
+  await FirebaseFirestore.instance.collection('users').get();
+
+  return snapshot.docs.map((doc) => User.fromJson(doc.data() as Map<String, dynamic>)).toList();
+}

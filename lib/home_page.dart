@@ -17,11 +17,23 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final CardController _cardController = CardController();
+  List<User> users = []; // Boş kullanıcı listesi
+
+  @override
+  void initState() {
+    super.initState();
+    getUsersFromFirestore();
+  }
+
+  Future<void> getUsersFromFirestore() async {
+    List<User> fetchedUsers = await fetchUsers();
+    setState(() {
+      users = fetchedUsers;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -44,7 +56,9 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      body: Column(
+      body: users.isEmpty
+          ? Center(child: CircularProgressIndicator()) // Veriler yüklenirken gösterilecek
+          : Column(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           Center(
@@ -67,7 +81,7 @@ class _HomePageState extends State<HomePage> {
                   child: Stack(
                     children: [
                       Image.asset(
-                        users[index].imagePath,
+                        users[index].imagePath, // Firestore'dan çekilen resim
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
@@ -147,90 +161,13 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      bottomNavigationBar: Container(
-        height: 80,
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border(top: BorderSide(color: Colors.orangeAccent, width: 1)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            Column(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(100),
-                      color: Colors.orangeAccent
-                  ),
-                  child: IconButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const HomePage()),
-                      );
-                    },
-                    icon: Icon(Ikon.star_half_alt, size: 40, color: Colors.black),
-                  ),
-                ),
-                Text("Keşfet")
-              ],
-            ),
-            Column(
-              children: [
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MatchPage()),
-                    );
-                  },
-                  icon: Icon(Icons.people_rounded, size: 40, color: Colors.black),
-                ),
-                Text("Eşleş")
-              ],
-            ),
-            Column(
-              children: [
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const MessagePage(),
-                      ),
-                    );
-                  },
-                  icon: Icon(Icons.message, size: 40, color: Colors.black),
-                ),
-                Text("Sohbet")
-              ],
-            ),
-            Column(
-              children: [
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProfileDetail(),
-                      ),
-                    );
-                  },
-                  icon: Icon(Icons.person, size: 40, color: Colors.black),
-                ),
-                Text("Profil")
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
-Widget buildName(User user) => Row(
+
+  Widget buildName(User user) => Row(
     children: [
       Text(
-        user.name ?? 'Bilgi Yok',
+        user.name,
         style: TextStyle(
           fontSize: 32,
           color: Colors.white,
@@ -238,9 +175,8 @@ Widget buildName(User user) => Row(
         ),
       ),
       SizedBox(width: 16),
-      // 'user.age' null olursa 0 gösterilsin
       Text(
-        user.age != null ? '${user.age}' : '0', // null kontrolü ekleniyor
+        '${user.age}',
         style: TextStyle(fontSize: 32, color: Colors.white),
       ),
     ],
