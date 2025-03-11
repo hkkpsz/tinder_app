@@ -3,7 +3,6 @@ import 'package:ucanble_tinder/home_page.dart';
 import 'login_page.dart';
 import 'package:ucanble_tinder/services/auth_service.dart';
 
-
 class SignUp extends StatefulWidget {
   const SignUp({super.key});
 
@@ -12,15 +11,14 @@ class SignUp extends StatefulWidget {
 }
 
 class _SignUpState extends State<SignUp> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _ageController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
-  final TextEditingController _adController = TextEditingController();
-  final TextEditingController _yasController = TextEditingController();
   String? _passwordError;
 
   @override
-
   void _signUp() async {
     _validatePasswords();
     if (_passwordError != null) return;
@@ -29,8 +27,8 @@ class _SignUpState extends State<SignUp> {
     var user = await authService.signUpWithEmail(
       _emailController.text.trim(),
       _passwordController.text.trim(),
-      _adController.text.trim(),
-      _yasController.text.trim(),
+      _nameController.text.trim(),
+      _ageController.text.trim(),
     );
 
     if (user != null) {
@@ -42,13 +40,12 @@ class _SignUpState extends State<SignUp> {
     }
   }
 
-
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _adController.dispose();
-    _yasController.dispose();
+    _nameController.dispose();
+    _ageController.dispose();
     super.dispose();
   }
 
@@ -94,7 +91,7 @@ class _SignUpState extends State<SignUp> {
                 children: [
                   Expanded(
                     child: _buildTextField(
-                      controller: _adController,
+                      controller: _nameController,
                       hintText: "Ad",
                       icon: Icons.person,
                     ),
@@ -102,7 +99,7 @@ class _SignUpState extends State<SignUp> {
                   const SizedBox(width: 15),
                   Expanded(
                     child: _buildTextField(
-                      controller: _yasController,
+                      controller: _ageController,
                       hintText: "Yaş",
                       icon: Icons.date_range,
                     ),

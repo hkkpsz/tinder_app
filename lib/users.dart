@@ -3,20 +3,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class User {
   final String name;
   final int age;
-  final String imagePath;
+  final DateTime createdAt;
 
   User({
     required this.name,
-    required this.imagePath,
     required this.age,
+    required this.createdAt,
   });
 
   // Firestore'dan çekilen veriyi User nesnesine dönüştüren metod
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       name: json['name'] ?? 'Bilinmeyen',
-      age: json['age'] ?? 0,
-      imagePath: json['imagePath'] ?? '',
+      age: int.tryParse(json['age'].toString()) ?? 0,
+      createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000, 1, 1),
     );
   }
 }

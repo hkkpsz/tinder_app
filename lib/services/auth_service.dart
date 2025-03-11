@@ -6,7 +6,7 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Kullanıcı kayıt olma fonksiyonu
-  Future<User?> signUpWithEmail(String email, String password, String ad, String soyad) async {
+  Future<User?> signUpWithEmail(String email, String password, String name, String age) async {
     try {
       if (!isValidEmail(email)) {
         throw "Geçersiz e-posta formatı! Lütfen doğru bir e-posta girin.";
@@ -20,14 +20,13 @@ class AuthService {
       // Firestore'a kullanıcı verisini kaydet
       await _firestore.collection('users').doc(userCredential.user?.uid).set({
         'email': email,
-        'ad': ad,
-        'soyad': soyad,
-        'createdAt': Timestamp.now(),
+        'name': name,
+        'age': age,
+        'createdAt': Timestamp.now(), // Oluşturulma tarihi
       }).catchError((e) {
         print("Firestore Kaydetme Hatası: $e");
         return null;
       });
-
 
       return userCredential.user; // Başarılı olursa kullanıcıyı döndür
     } catch (e) {
@@ -35,6 +34,7 @@ class AuthService {
       return null; // Hata olursa null döndür
     }
   }
+
   Future<User?> signInWithEmail(String email, String password) async {
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
@@ -47,7 +47,6 @@ class AuthService {
       return null; // Hata olursa null döndür
     }
   }
-
 
   // E-posta formatını kontrol eden fonksiyon
   bool isValidEmail(String email) {

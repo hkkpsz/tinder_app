@@ -80,10 +80,9 @@ class _HomePageState extends State<HomePage> {
                 cardBuilder: (context, index) => Card(
                   child: Stack(
                     children: [
+                      // Burada imagePath yerine Postegro'dan çekilecek görsel URL'si
                       Image.network(
-                        users[index].imagePath.isNotEmpty
-                            ? users[index].imagePath
-                            : 'https://i.pinimg.com/736x/7f/fe/dd/7ffeddc67d1fa80080c0a1377faa9690.jpg', // Burada default bir görsel URL'si koymalısın
+                        'https://postegro.com/images/${users[index].name}.jpg', // Postegro URL'si (Örnek URL)
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
@@ -183,7 +182,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   child: IconButton(
                     onPressed: () {
-                      Navigator.pop(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => const HomePage()),
                       );
@@ -211,16 +210,16 @@ class _HomePageState extends State<HomePage> {
             Column(
               children: [
                 IconButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MessagePage(),
-                        ),
-                      );
-                    },
-                    icon: Icon(Icons.message, size: 40, color: Colors.black),
-                  ),
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MessagePage(),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.message, size: 40, color: Colors.black),
+                ),
                 Text("Sohbet")
               ],
             ),
