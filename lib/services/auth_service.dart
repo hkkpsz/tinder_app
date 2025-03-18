@@ -6,7 +6,7 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Kullanıcı kayıt olma fonksiyonu
-  Future<User?> signUpWithEmail(String email, String password, String ad, String soyad) async {
+  Future<User?> signUpWithEmail(String email, String password, String ad, int yas, String workplace) async {
     try {
       if (!isValidEmail(email)) {
         throw "Geçersiz e-posta formatı! Lütfen doğru bir e-posta girin.";
@@ -21,8 +21,9 @@ class AuthService {
       await _firestore.collection('users').doc(userCredential.user?.uid).set({
         'email': email,
         'ad': ad,
-        'soyad': soyad,
+        'yas': yas,
         'createdAt': Timestamp.now(),
+        'workplace' : workplace,
       }).catchError((e) {
         print("Firestore Kaydetme Hatası: $e");
         return null;

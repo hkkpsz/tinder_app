@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/home_page.dart';
+import 'package:ucanble_tinder/services/database.dart';
 import 'login_page.dart';
 import 'package:ucanble_tinder/services/auth_service.dart';
 
@@ -16,7 +17,8 @@ class _SignUpState extends State<SignUp> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _adController = TextEditingController();
-  final TextEditingController _soyadController = TextEditingController();
+  final TextEditingController _yasController = TextEditingController();
+  final TextEditingController _workplaceController = TextEditingController();
   String? _passwordError;
 
   @override
@@ -30,10 +32,22 @@ class _SignUpState extends State<SignUp> {
       _emailController.text.trim(),
       _passwordController.text.trim(),
       _adController.text.trim(),
-      _soyadController.text.trim(),
+      int.parse(_yasController.text.trim()),
+      _workplaceController.text.trim(),
     );
 
     if (user != null) {
+      // PostgreSQL'e kaydet
+      DatabaseService dbService = DatabaseService();
+      await dbService.connect();
+      await dbService.insertUser(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+        _adController.text.trim(),
+        int.parse(_yasController.text.trim()),
+        _workplaceController.text.trim(),
+      );
+
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -48,7 +62,8 @@ class _SignUpState extends State<SignUp> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _adController.dispose();
-    _soyadController.dispose();
+    _yasController.dispose();
+    _workplaceController.dispose();
     super.dispose();
   }
 
@@ -67,7 +82,7 @@ class _SignUpState extends State<SignUp> {
       backgroundColor: colorScheme.onSecondary,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
+          padding: EdgeInsets.all(12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -102,13 +117,15 @@ class _SignUpState extends State<SignUp> {
                   const SizedBox(width: 15),
                   Expanded(
                     child: _buildTextField(
-                      controller: _soyadController,
-                      hintText: "Soyad",
+                      controller: _yasController,
+                      hintText: "Yaş",
                       icon: Icons.perm_contact_calendar,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 25,),
+              _buildTextField(controller: _workplaceController, hintText: "Çalıştığı Yer", icon: Icons.work),
               const SizedBox(height: 25),
               _buildTextField(controller: _emailController, hintText: "E-posta", icon: Icons.email),
               const SizedBox(height: 25),
