@@ -1,8 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/home_page.dart';
+import 'package:ucanble_tinder/services/database.dart';
 import 'package:ucanble_tinder/sign_up.dart';
 import 'package:ucanble_tinder/services/auth_service.dart';
+import 'package:ucanble_tinder/upload_image.dart';
+import 'package:ucanble_tinder/sign_up.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
 
 
   @override
-  void _signIn() async {
+  Future<void> _signIn() async {
     AuthService authService = AuthService();
     User? user = await authService.signInWithEmail(
       _emailController.text.trim(),
@@ -37,15 +40,28 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     if (user != null) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
+      String userId = user.uid;  // Firebase'den gelen userId
+      DatabaseService dbService = DatabaseService();
+      await dbService.connect();
+
+      // Firebase'den gelen userId'yi veritabanına kaydediyoruz
+      await dbService.updateUserFirebaseUid(
+        _emailController.text.trim(),
+        userId, // Firebase user ID
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => UploadImagePage(userId: userId),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Giriş başarısız! E-posta veya şifre yanlış.")),
       );
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {

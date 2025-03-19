@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/home_page.dart';
 import 'package:ucanble_tinder/services/database.dart';
+import 'package:ucanble_tinder/upload_image.dart';
 import 'login_page.dart';
 import 'package:ucanble_tinder/services/auth_service.dart';
 
@@ -37,6 +38,7 @@ class _SignUpState extends State<SignUp> {
     );
 
     if (user != null) {
+      String userId = user.uid;
       // PostgreSQL'e kaydet
       DatabaseService dbService = DatabaseService();
       await dbService.connect();
@@ -48,7 +50,12 @@ class _SignUpState extends State<SignUp> {
         _workplaceController.text.trim(),
       );
 
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LoginPage(),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Kayıt işlemi başarısız!")),
