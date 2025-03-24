@@ -53,8 +53,8 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => UploadImagePage(userId: userId),
-        ),
+          builder: (context) => UploadImagePage(userId: userId)),
+            // ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -138,7 +138,6 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 25),
             Container(
               decoration: BoxDecoration(

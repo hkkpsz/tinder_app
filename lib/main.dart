@@ -28,7 +28,7 @@ class _MyAppState extends State<MyApp> {
         colorScheme: ColorScheme(
           brightness: Brightness.light,
           primary: Color.fromRGBO(122, 121, 122, 1.0),
-          onPrimary: Color.fromARGB(255, 138, 171, 255),
+          onPrimary: Color.fromARGB(255, 0, 31, 104),
           secondary: Color.fromARGB(255, 8, 22, 43),
           onSecondary: Color.fromARGB(255, 65, 65, 67),
           error: Color.fromARGB(255, 201, 0, 253),

@@ -132,7 +132,7 @@ class _SignUpState extends State<SignUp> {
                 ],
               ),
               const SizedBox(height: 25,),
-              _buildTextField(controller: _workplaceController, hintText: "Çalıştığı Yer", icon: Icons.work),
+              _buildTextField(controller: _workplaceController, hintText: "Yer ve Pozisyon", icon: Icons.work),
               const SizedBox(height: 25),
               _buildTextField(controller: _emailController, hintText: "E-posta", icon: Icons.email),
               const SizedBox(height: 25),
