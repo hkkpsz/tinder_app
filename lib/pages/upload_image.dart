@@ -2,7 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:postgres/postgres.dart';
-import 'package:ucanble_tinder/home_page.dart';
+import 'package:ucanble_tinder/pages/home_page.dart';
+import 'package:ucanble_tinder/pages/upload_cv.dart';
 
 class UploadImagePage extends StatefulWidget {
   final String userId; // Kullanıcı ID'sini almak için
@@ -31,7 +32,8 @@ class _UploadImagePageState extends State<UploadImagePage> {
         _hasError = false; // Hata durumunu sıfırla
 
         // Yüklenen resim sayısına göre butonun aktif olup olmayacağını kontrol et
-        _isContinueEnabled = selectedImages.where((image) => image != null).length >= 2;
+        _isContinueEnabled =
+            selectedImages.where((image) => image != null).length >= 2;
       });
     }
   }
@@ -49,11 +51,8 @@ class _UploadImagePageState extends State<UploadImagePage> {
     await connection.open();
     await connection.query(
       'INSERT INTO image (user_id, image_url) '
-          'SELECT id, @imageUrl FROM users WHERE firebase_uid = @firebaseUid',
-      substitutionValues: {
-        'imageUrl': imageUrl,
-        'firebaseUid': userId,
-      },
+      'SELECT id, @imageUrl FROM users WHERE firebase_uid = @firebaseUid',
+      substitutionValues: {'imageUrl': imageUrl, 'firebaseUid': userId},
     );
 
     await connection.close();
@@ -68,8 +67,10 @@ class _UploadImagePageState extends State<UploadImagePage> {
         }
       }
       // İşlem tamamlandığında yönlendirme veya başka bir işlem yapılabilir
-      Navigator.push(context,
-          MaterialPageRoute(builder: (context) => const HomePage()));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => UploadCv(userId: widget.userId,)),
+      );
     }
   }
 
@@ -132,15 +133,19 @@ class _UploadImagePageState extends State<UploadImagePage> {
                 // İlk satır (3 buton)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children:
-                  List.generate(3, (index) => _buildImageContainer(index)),
+                  children: List.generate(
+                    3,
+                    (index) => _buildImageContainer(index),
+                  ),
                 ),
                 SizedBox(height: 30),
                 // İkinci satır (3 buton)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: List.generate(
-                      3, (index) => _buildImageContainer(index + 3)),
+                    3,
+                    (index) => _buildImageContainer(index + 3),
+                  ),
                 ),
                 SizedBox(height: 90),
                 Align(
@@ -154,18 +159,27 @@ class _UploadImagePageState extends State<UploadImagePage> {
                         width: 150,
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.black, width: 1),
-                          color: _isContinueEnabled ? colorScheme.onPrimary : Colors.grey,
+                          color:
+                              _isContinueEnabled
+                                  ? colorScheme.onPrimary
+                                  : Colors.grey,
                           borderRadius: BorderRadius.circular(50),
-                          boxShadow: _isContinueEnabled
-                              ? [
-                            BoxShadow(
-                              color: Colors.indigo.withOpacity(0.3), // Gölge rengi
-                              spreadRadius: 10, // Yayılma
-                              blurRadius: 10, // Bulanıklık
-                              offset: Offset(1, 5), // X ve Y ekseninde kayma
-                            ),
-                          ]
-                              : [], // Pasifken shadow olmasın
+                          boxShadow:
+                              _isContinueEnabled
+                                  ? [
+                                    BoxShadow(
+                                      color: Colors.indigo.withOpacity(
+                                        0.3,
+                                      ), // Gölge rengi
+                                      spreadRadius: 10, // Yayılma
+                                      blurRadius: 10, // Bulanıklık
+                                      offset: Offset(
+                                        1,
+                                        5,
+                                      ), // X ve Y ekseninde kayma
+                                    ),
+                                  ]
+                                  : [], // Pasifken shadow olmasın
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -173,14 +187,14 @@ class _UploadImagePageState extends State<UploadImagePage> {
                             Text(
                               "Devam Et",
                               style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                             Icon(Icons.arrow_circle_right, color: Colors.white),
                           ],
                         ),
                       ),
-
                     ),
                   ),
                 ),
@@ -202,32 +216,32 @@ class _UploadImagePageState extends State<UploadImagePage> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: Colors.grey[300],
-          image: selectedImages[index] != null
-              ? DecorationImage(
-              image: FileImage(selectedImages[index]!),
-              fit: BoxFit.cover)
-              : null,
+          image:
+              selectedImages[index] != null
+                  ? DecorationImage(
+                    image: FileImage(selectedImages[index]!),
+                    fit: BoxFit.cover,
+                  )
+                  : null,
         ),
-        child: selectedImages[index] == null
-            ? FloatingActionButton(
-          heroTag: "Resim $index",
-          onPressed: () => _showImagePicker(context, index),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add, color: Colors.white),
-              SizedBox(height: 15),
-              Text(
-                "Resim Ekle",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-        )
-            : null,
+        child:
+            selectedImages[index] == null
+                ? FloatingActionButton(
+                  heroTag: "Resim $index",
+                  onPressed: () => _showImagePicker(context, index),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add, color: Colors.white),
+                      SizedBox(height: 15),
+                      Text(
+                        "Resim Ekle",
+                        style: TextStyle(color: Colors.white, fontSize: 10),
+                      ),
+                    ],
+                  ),
+                )
+                : null,
       ),
     );
   }

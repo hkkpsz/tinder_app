@@ -1,11 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:ucanble_tinder/home_page.dart';
+import 'package:ucanble_tinder/pages/home_page.dart';
 import 'package:ucanble_tinder/services/database.dart';
-import 'package:ucanble_tinder/sign_up.dart';
+import 'package:ucanble_tinder/pages/sign_up.dart';
 import 'package:ucanble_tinder/services/auth_service.dart';
-import 'package:ucanble_tinder/upload_image.dart';
-import 'package:ucanble_tinder/sign_up.dart';
+import 'package:ucanble_tinder/pages/upload_image.dart';
+import 'package:ucanble_tinder/pages/sign_up.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

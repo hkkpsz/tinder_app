@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:card_swiper/card_swiper.dart';
 import 'package:scrumlab_flutter_tindercard/scrumlab_flutter_tindercard.dart';
-import 'package:ucanble_tinder/match_page.dart';
-import 'package:ucanble_tinder/message_page.dart';
+import 'package:ucanble_tinder/pages/match_page.dart';
+import 'package:ucanble_tinder/pages/message_page.dart';
 import 'package:ucanble_tinder/profile_detail.dart';
-import 'package:ucanble_tinder/selection_page.dart';
-import 'users.dart';
+import 'package:ucanble_tinder/pages/selection_page.dart';
+import '../users.dart';
 import 'package:ucanble_tinder/ikon_icons.dart';
 
 class HomePage extends StatefulWidget {

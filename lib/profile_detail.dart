@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'ikon_icons.dart';
-import 'home_page.dart';
-import 'match_page.dart';
-import 'message_page.dart';
+import 'pages/home_page.dart';
+import 'pages/match_page.dart';
+import 'pages/message_page.dart';
 
 class ProfileDetail extends StatefulWidget {
   const ProfileDetail({super.key});

@@ -1,44 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/profile_detail.dart';
-import 'ikon_icons.dart';
+import '../ikon_icons.dart';
 import 'home_page.dart';
-import 'message_page.dart';
+import 'match_page.dart';
 
-class MatchPage extends StatefulWidget {
-  const MatchPage({super.key});
+class MessagePage extends StatefulWidget {
+  const MessagePage({super.key});
 
   @override
-  State<MatchPage> createState() => _MatchPageState();
+  State<MessagePage> createState() => _MessagePageState();
 }
 
-class _MatchPageState extends State<MatchPage> {
+class _MessagePageState extends State<MessagePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-            title: Text(
-                "Match Page"
-            ),
+      appBar: AppBar(
+        title: Text(
+            "Message Page"
         ),
-      body: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-                color: Colors.orangeAccent
-            ),
-            width: 170,
-            height: 220,
-          ),
-          Container(
-            decoration: BoxDecoration(
-                color: Colors.orangeAccent
-            ),
-            width: 170,
-            height: 220,
-          ),
-        ],
       ),
+      body: Center(),
       bottomNavigationBar: Container(
         height: 80,
         decoration: BoxDecoration(
@@ -50,7 +32,7 @@ class _MatchPageState extends State<MatchPage> {
           children: [
             Column(
               children: [
-                  IconButton(
+                IconButton(
                     onPressed: () {
                       Navigator.pop(
                         context,
@@ -58,29 +40,8 @@ class _MatchPageState extends State<MatchPage> {
                       );
                     },
                     icon: Icon(Ikon.star_half_alt, size: 40, color: Colors.black),
-                ),
+                  ),
                 Text("Keşfet")
-              ],
-            ),
-            Column(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.orangeAccent,
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  alignment: Alignment.center, // İkonu container'ın tam ortasına yerleştir
-                  child: IconButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const MatchPage()),
-                      );
-                    },
-                    icon: Icon(Icons.people_rounded, size: 40, color: Colors.black),
-                  ),
-                ),
-                Text("Eşleş")
               ],
             ),
             Column(
@@ -89,12 +50,32 @@ class _MatchPageState extends State<MatchPage> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => const MessagePage(),
-                      ),
+                      MaterialPageRoute(builder: (context) => const MatchPage()),
                     );
                   },
-                  icon: Icon(Icons.message, size: 40, color: Colors.black),
+                  icon: Icon(Icons.people_rounded, size: 40, color: Colors.black),
+                ),
+                Text("Eşleş")
+              ],
+            ),
+            Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.orangeAccent,
+                    borderRadius: BorderRadius.circular(100)
+                  ),
+                  child: IconButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MessagePage(),
+                        ),
+                      );
+                    },
+                    icon: Icon(Icons.message, size: 40, color: Colors.black),
+                  ),
                 ),
                 Text("Sohbet")
               ],

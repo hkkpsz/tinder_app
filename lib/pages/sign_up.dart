@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:ucanble_tinder/home_page.dart';
+import 'package:ucanble_tinder/pages/home_page.dart';
 import 'package:ucanble_tinder/services/database.dart';
-import 'package:ucanble_tinder/upload_image.dart';
+import 'package:ucanble_tinder/pages/upload_image.dart';
 import 'login_page.dart';
 import 'package:ucanble_tinder/services/auth_service.dart';
 
