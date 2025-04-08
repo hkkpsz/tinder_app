@@ -23,16 +23,50 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(
+        fontFamily: 'Roboto',
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: IconThemeData(color: Colors.red),
+          titleTextStyle: TextStyle(
+            color: Colors.red,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         colorScheme: ColorScheme(
           brightness: Brightness.light,
-          primary: Color.fromRGBO(122, 121, 122, 1.0),
-          onPrimary: Color.fromARGB(255, 0, 31, 104),
-          secondary: Color.fromARGB(255, 8, 22, 43),
-          onSecondary: Color.fromARGB(255, 65, 65, 67),
-          error: Color.fromARGB(255, 201, 0, 253),
-          onError: Color.fromARGB(255, 243, 243, 244),
+          primary: Colors.red,
+          onPrimary: Colors.white,
+          secondary: Colors.redAccent,
+          onSecondary: Colors.white,
+          error: Colors.redAccent,
+          onError: Colors.white,
+          background: Colors.white,
+          onBackground: Colors.black87,
           surface: Colors.white,
           onSurface: Colors.black87,
+        ),
+        textTheme: TextTheme(
+          bodyLarge: TextStyle(color: Colors.black87, fontSize: 16),
+          bodyMedium: TextStyle(color: Colors.black87, fontSize: 14),
+          titleLarge: TextStyle(
+            color: Colors.black87,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(25),
+            ),
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
         ),
       ),
       debugShowCheckedModeBanner: false,
