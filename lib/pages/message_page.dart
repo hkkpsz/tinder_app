@@ -15,11 +15,7 @@ class _MessagePageState extends State<MessagePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-            "Message Page"
-        ),
-      ),
+      appBar: AppBar(title: Text("Message Page")),
       body: Center(),
       bottomNavigationBar: Container(
         height: 80,
@@ -33,15 +29,15 @@ class _MessagePageState extends State<MessagePage> {
             Column(
               children: [
                 IconButton(
-                    onPressed: () {
-                      Navigator.pop(
-                        context,
-                        MaterialPageRoute(builder: (context) => const HomePage()),
-                      );
-                    },
-                    icon: Icon(Ikon.star_half_alt, size: 40, color: Colors.black),
-                  ),
-                Text("Keşfet")
+                  onPressed: () {
+                    Navigator.pop(
+                      context,
+                      MaterialPageRoute(builder: (context) => const HomePage()),
+                    );
+                  },
+                  icon: Icon(Ikon.star_half_alt, size: 40, color: Colors.black),
+                ),
+                Text("Keşfet"),
               ],
             ),
             Column(
@@ -50,12 +46,18 @@ class _MessagePageState extends State<MessagePage> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const MatchPage()),
+                      MaterialPageRoute(
+                        builder: (context) => const MatchPage(),
+                      ),
                     );
                   },
-                  icon: Icon(Icons.people_rounded, size: 40, color: Colors.black),
+                  icon: Icon(
+                    Icons.people_rounded,
+                    size: 40,
+                    color: Colors.black,
+                  ),
                 ),
-                Text("Eşleş")
+                Text("Eşleş"),
               ],
             ),
             Column(
@@ -63,7 +65,7 @@ class _MessagePageState extends State<MessagePage> {
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.orangeAccent,
-                    borderRadius: BorderRadius.circular(100)
+                    borderRadius: BorderRadius.circular(100),
                   ),
                   child: IconButton(
                     onPressed: () {
@@ -77,7 +79,7 @@ class _MessagePageState extends State<MessagePage> {
                     icon: Icon(Icons.message, size: 40, color: Colors.black),
                   ),
                 ),
-                Text("Sohbet")
+                Text("Sohbet"),
               ],
             ),
             Column(
@@ -93,7 +95,7 @@ class _MessagePageState extends State<MessagePage> {
                   },
                   icon: Icon(Icons.person, size: 40, color: Colors.black),
                 ),
-                Text("Profil")
+                Text("Profil"),
               ],
             ),
           ],

@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/pages/home_page.dart';
 import 'package:ucanble_tinder/pages/login_page.dart';
-import 'users.dart';
+import 'package:ucanble_tinder/pages/sign_up.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'services/firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
@@ -38,7 +36,7 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      home: LoginPage(),
+      home: HomePage(),
     );
   }
 }

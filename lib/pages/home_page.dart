@@ -20,8 +20,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -44,108 +42,118 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Center(
-            child: SizedBox(
-              height: 600,
-              width: 350,
-              child: TinderSwapCard(
-                swipeUp: true,
-                swipeDown: true,
-                orientation: AmassOrientation.bottom,
-                totalNum: users.length,
-                stackNum: 2,
-                swipeEdge: 4.0,
-                maxHeight: MediaQuery.of(context).size.height * 0.8,
-                maxWidth: MediaQuery.of(context).size.width * 0.8,
-                minWidth: MediaQuery.of(context).size.width * 0.7,
-                minHeight: MediaQuery.of(context).size.height * 0.7,
-                cardController: _cardController,
-                cardBuilder: (context, index) => Card(
-                  child: Stack(
-                    children: [
-                      Image.asset(
-                        users[index].imagePath,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      ),
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                Colors.black.withOpacity(0.7),
-                                Colors.transparent,
-                              ],
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            Center(
+              child: SizedBox(
+                height: 600,
+                width: 350,
+                child: TinderSwapCard(
+                  swipeUp: true,
+                  swipeDown: true,
+                  orientation: AmassOrientation.bottom,
+                  totalNum: users.length,
+                  stackNum: 2,
+                  swipeEdge: 4.0,
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  maxWidth: MediaQuery.of(context).size.width * 0.8,
+                  minWidth: MediaQuery.of(context).size.width * 0.7,
+                  minHeight: MediaQuery.of(context).size.height * 0.7,
+                  cardController: _cardController,
+                  cardBuilder:
+                      (context, index) => Card(
+                        child: Stack(
+                          children: [
+                            Image.asset(
+                              users[index].imagePath,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
                             ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              buildName(users[index]),
-                              SizedBox(height: 5),
-                              buildStatus(),
-                            ],
-                          ),
+                            Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [
+                                      Colors.black.withOpacity(0.7),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    buildName(users[index]),
+                                    SizedBox(height: 5),
+                                    buildStatus(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                  swipeUpdateCallback: (
+                    DragUpdateDetails details,
+                    Alignment align,
+                  ) {
+                    if (align.x < 0) {
+                      print("Kart sola kaydırılıyor ❌");
+                    } else if (align.x > 0) {
+                      print("Kart sağa kaydırılıyor ❤️");
+                    }
+                  },
+                  swipeCompleteCallback: (
+                    CardSwipeOrientation orientation,
+                    int index,
+                  ) {
+                    if (orientation == CardSwipeOrientation.right) {
+                      print("Kart sağa kaydırıldı ❤️");
+                    } else if (orientation == CardSwipeOrientation.left) {
+                      print("Kart sola kaydırıldı ❌");
+                    }
+                  },
                 ),
-                swipeUpdateCallback: (DragUpdateDetails details, Alignment align) {
-                  if (align.x < 0) {
-                    print("Kart sola kaydırılıyor ❌");
-                  } else if (align.x > 0) {
-                    print("Kart sağa kaydırılıyor ❤️");
-                  }
-                },
-                swipeCompleteCallback: (CardSwipeOrientation orientation, int index) {
-                  if (orientation == CardSwipeOrientation.right) {
-                    print("Kart sağa kaydırıldı ❤️");
-                  } else if (orientation == CardSwipeOrientation.left) {
-                    print("Kart sola kaydırıldı ❌");
-                  }
-                },
               ),
             ),
-          ),
-          Container(
-            width: 300,
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(50),
-              border: Border.all(width: 3),
+            Container(
+              width: 300,
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(50),
+                border: Border.all(width: 3),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      _cardController.triggerLeft();
+                      print("Kart sola kaydırıldı ❌");
+                    },
+                    icon: Icon(Icons.close, size: 50, color: Colors.red),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      _cardController.triggerRight();
+                      print("Kart sağa kaydırıldı ❤️");
+                    },
+                    icon: Icon(Ikon.heart, size: 50, color: Colors.red),
+                  ),
+                ],
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                IconButton(
-                  onPressed: () {
-                    _cardController.triggerLeft();
-                    print("Kart sola kaydırıldı ❌");
-                  },
-                  icon: Icon(Icons.close, size: 50, color: Colors.red),
-                ),
-                IconButton(
-                  onPressed: () {
-                    _cardController.triggerRight();
-                    print("Kart sağa kaydırıldı ❤️");
-                  },
-                  icon: Icon(Ikon.heart, size: 50, color: Colors.red),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: Container(
         height: 80,
@@ -160,20 +168,26 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(100),
-                      color: Colors.orangeAccent
+                    borderRadius: BorderRadius.circular(100),
+                    color: Colors.orangeAccent,
                   ),
                   child: IconButton(
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const HomePage()),
+                        MaterialPageRoute(
+                          builder: (context) => const HomePage(),
+                        ),
                       );
                     },
-                    icon: Icon(Ikon.star_half_alt, size: 40, color: Colors.black),
+                    icon: Icon(
+                      Ikon.star_half_alt,
+                      size: 40,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
-                Text("Keşfet")
+                Text("Keşfet"),
               ],
             ),
             Column(
@@ -182,12 +196,18 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const MatchPage()),
+                      MaterialPageRoute(
+                        builder: (context) => const MatchPage(),
+                      ),
                     );
                   },
-                  icon: Icon(Icons.people_rounded, size: 40, color: Colors.black),
+                  icon: Icon(
+                    Icons.people_rounded,
+                    size: 40,
+                    color: Colors.black,
+                  ),
                 ),
-                Text("Eşleş")
+                Text("Eşleş"),
               ],
             ),
             Column(
@@ -203,7 +223,7 @@ class _HomePageState extends State<HomePage> {
                   },
                   icon: Icon(Icons.message, size: 40, color: Colors.black),
                 ),
-                Text("Sohbet")
+                Text("Sohbet"),
               ],
             ),
             Column(
@@ -219,7 +239,7 @@ class _HomePageState extends State<HomePage> {
                   },
                   icon: Icon(Icons.person, size: 40, color: Colors.black),
                 ),
-                Text("Profil")
+                Text("Profil"),
               ],
             ),
           ],
@@ -227,7 +247,8 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-Widget buildName(User user) => Row(
+
+  Widget buildName(User user) => Row(
     children: [
       Text(
         user.name ?? 'Bilgi Yok',
@@ -238,9 +259,8 @@ Widget buildName(User user) => Row(
         ),
       ),
       SizedBox(width: 16),
-      // 'user.age' null olursa 0 gösterilsin
       Text(
-        user.age != null ? '${user.age}' : '0', // null kontrolü ekleniyor
+        user.age != null ? '${user.age}' : '0',
         style: TextStyle(fontSize: 32, color: Colors.white),
       ),
     ],

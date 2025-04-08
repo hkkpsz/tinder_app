@@ -5,7 +5,7 @@ import 'package:ucanble_tinder/services/database.dart';
 import 'package:ucanble_tinder/pages/sign_up.dart';
 import 'package:ucanble_tinder/services/auth_service.dart';
 import 'package:ucanble_tinder/pages/upload_image.dart';
-import 'package:ucanble_tinder/pages/sign_up.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -19,7 +19,8 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   final FocusNode _emailFocusNode = FocusNode(); // FocusNode for email field
   final FocusNode _passwordFocusNode =
-  FocusNode(); // FocusNode for password field
+      FocusNode(); // FocusNode for password field
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -30,9 +31,12 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-
   @override
   Future<void> _signIn() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     AuthService authService = AuthService();
     User? user = await authService.signInWithEmail(
       _emailController.text.trim(),
@@ -40,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     if (user != null) {
-      String userId = user.uid;  // Firebase'den gelen userId
+      String userId = user.uid; // Firebase'den gelen userId
       DatabaseService dbService = DatabaseService();
       await dbService.connect();
 
@@ -50,15 +54,28 @@ class _LoginPageState extends State<LoginPage> {
         userId, // Firebase user ID
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => UploadImagePage(userId: userId)),
-            // ),
-      );
+      // Kullanıcının profil durumunu kontrol et
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Ana sayfa yönlendirmesini kaldır, AuthenticationWrapper zaten doğru sayfaya yönlendirecek
+      Navigator.pop(context);
     } else {
+      setState(() {
+        _isLoading = false;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Giriş başarısız! E-posta veya şifre yanlış.")),
+        const SnackBar(
+          content: Text("Giriş başarısız! E-posta veya şifre yanlış."),
+        ),
       );
     }
   }
@@ -79,138 +96,155 @@ class _LoginPageState extends State<LoginPage> {
       //   elevation: 5,
       //   shadowColor: colorScheme.secondary,
       // ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: colorScheme.secondary, // Gölge rengini ayarlayabilirsiniz
-                      spreadRadius: 5, // Gölgenin yayılma miktarı
-                      blurRadius: 15, // Gölgenin bulanıklık miktarı
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  colorScheme
+                                      .secondary, // Gölge rengini ayarlayabilirsiniz
+                              spreadRadius: 5, // Gölgenin yayılma miktarı
+                              blurRadius: 15, // Gölgenin bulanıklık miktarı
+                            ),
+                          ],
+                        ),
+                        child: Image.asset(
+                          'assets/images/ucanble.png',
+                          width: 300,
+                          height: 100,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            blurStyle: BlurStyle.normal,
+                            color: colorScheme.secondary,
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                          BoxShadow(
+                            blurStyle: BlurStyle.normal,
+                            color: colorScheme.secondary,
+                            blurRadius: 50,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        focusNode: _emailFocusNode, // Attach FocusNode
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          hintText: "E-posta",
+                          prefixIcon: Icon(Icons.email, color: Colors.grey),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            blurStyle: BlurStyle.normal,
+                            color: colorScheme.secondary,
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                          BoxShadow(
+                            blurStyle: BlurStyle.normal,
+                            color: colorScheme.secondary,
+                            blurRadius: 50,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        focusNode: _passwordFocusNode, // FocusNode eklendi
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          hintText: "Şifre",
+                          prefixIcon: Icon(Icons.lock, color: Colors.grey),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 35),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 50,
+                          vertical: 18,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        elevation: 5,
+                        shadowColor: colorScheme.secondary,
+                      ),
+                      onPressed: _signIn,
+                      child: const Text(
+                        "Giriş Yap",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 15),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SignUp(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        child: Text(
+                          "Hesabınız Yok mu?\nKayıt Olmak İçin Tıklayınız.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                child: Image.asset(
-                  'assets/images/ucanble.png',
-                  width: 300,
-                  height: 100,
-                ),
               ),
-            ),
-            const SizedBox(height: 40),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    blurStyle: BlurStyle.normal,
-                    color: colorScheme.secondary,
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    blurStyle: BlurStyle.normal,
-                    color: colorScheme.secondary,
-                    blurRadius: 50,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: TextField(
-                focusNode: _emailFocusNode, // Attach FocusNode
-                controller: _emailController,
-                decoration: InputDecoration(
-                  hintText: "E-posta",
-                  prefixIcon: Icon(Icons.email, color: Colors.grey),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding:
-                  EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                ),
-              ),
-            ),
-            const SizedBox(height: 25),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    blurStyle: BlurStyle.normal,
-                    color: colorScheme.secondary,
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    blurStyle: BlurStyle.normal,
-                    color: colorScheme.secondary,
-                    blurRadius: 50,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: TextField(
-                focusNode: _passwordFocusNode, // FocusNode eklendi
-                controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  hintText: "Şifre",
-                  prefixIcon: Icon(Icons.lock, color: Colors.grey),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                ),
-              ),
-            ),
-            const SizedBox(height: 35),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding:
-                const EdgeInsets.symmetric(horizontal: 50, vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                elevation: 5,
-                shadowColor: colorScheme.secondary,
-              ),
-              onPressed: _signIn,
-              child: const Text(
-                "Giriş Yap",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            SizedBox(height: 15,),
-            TextButton(
-              onPressed: () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => const SignUp()));
-              },
-              child: Container(
-                child: Text(
-                  "Hesabınız Yok mu?\nKayıt Olmak İçin Tıklayınız.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

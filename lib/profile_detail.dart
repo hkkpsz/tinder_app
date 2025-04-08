@@ -15,9 +15,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Profile Detail"),
-      ),
+      appBar: AppBar(title: Text("Profile Detail")),
       body: Center(),
       bottomNavigationBar: Container(
         height: 80,
@@ -39,7 +37,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
                   },
                   icon: Icon(Ikon.star_half_alt, size: 40, color: Colors.black),
                 ),
-                Text("Keşfet")
+                Text("Keşfet"),
               ],
             ),
             Column(
@@ -48,28 +46,34 @@ class _ProfileDetailState extends State<ProfileDetail> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const MatchPage()),
+                      MaterialPageRoute(
+                        builder: (context) => const MatchPage(),
+                      ),
                     );
                   },
-                  icon: Icon(Icons.people_rounded, size: 40, color: Colors.black),
+                  icon: Icon(
+                    Icons.people_rounded,
+                    size: 40,
+                    color: Colors.black,
+                  ),
                 ),
-                Text("Eşleş")
+                Text("Eşleş"),
               ],
             ),
             Column(
               children: [
                 IconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MessagePage(),
-                        ),
-                      );
-                    },
-                    icon: Icon(Icons.message, size: 40, color: Colors.black),
-                  ),
-                Text("Sohbet")
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MessagePage(),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.message, size: 40, color: Colors.black),
+                ),
+                Text("Sohbet"),
               ],
             ),
             Column(
@@ -91,7 +95,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
                     icon: Icon(Icons.person, size: 40, color: Colors.black),
                   ),
                 ),
-                Text("Profil")
+                Text("Profil"),
               ],
             ),
           ],

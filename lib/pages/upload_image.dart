@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:postgres/postgres.dart';
 import 'package:ucanble_tinder/pages/home_page.dart';
 import 'package:ucanble_tinder/pages/upload_cv.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UploadImagePage extends StatefulWidget {
   final String userId; // Kullanıcı ID'sini almak için
@@ -19,6 +21,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
   List<File?> selectedImages = List.filled(6, null); // 6 buton için liste
   bool _hasError = false; // Hata durumu kontrolü
   bool _isContinueEnabled = false; // Devam Et butonunun aktifliği
+  bool _isLoading = false; // Yükleme durumu
 
   // Resim seçme fonksiyonu
   Future<void> _pickImage(int index) async {
@@ -38,7 +41,49 @@ class _UploadImagePageState extends State<UploadImagePage> {
     }
   }
 
-  // Veritabanına kaydetme fonksiyonu (isteğe bağlı olarak kullanılabilir)
+  // Firebase Storage'a resimleri yükleme
+  Future<List<String>> _uploadImagesToFirebase() async {
+    List<String> imageUrls = [];
+
+    try {
+      for (var i = 0; i < selectedImages.length; i++) {
+        if (selectedImages[i] != null) {
+          String fileName = 'user_${widget.userId}_image_$i.jpg';
+          Reference storageRef = FirebaseStorage.instance.ref().child(
+            'user_images/$fileName',
+          );
+
+          UploadTask uploadTask = storageRef.putFile(selectedImages[i]!);
+          await uploadTask.whenComplete(() => null);
+
+          String downloadUrl = await storageRef.getDownloadURL();
+          imageUrls.add(downloadUrl);
+
+          // PostgreSQL veritabanına da kaydet
+          await _saveImageToDatabase(widget.userId, downloadUrl);
+        }
+      }
+
+      // Firestore'a ilerleme durumunu kaydet
+      await FirebaseFirestore.instance
+          .collection('userProgress')
+          .doc(widget.userId)
+          .set({
+            'imageUploaded': true,
+            'timestamp': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+      return imageUrls;
+    } catch (e) {
+      print('Resim yükleme hatası: $e');
+      setState(() {
+        _hasError = true;
+      });
+      return [];
+    }
+  }
+
+  // Veritabanına kaydetme fonksiyonu
   Future<void> _saveImageToDatabase(String userId, String imageUrl) async {
     final connection = PostgreSQLConnection(
       '10.0.2.2',
@@ -59,17 +104,25 @@ class _UploadImagePageState extends State<UploadImagePage> {
   }
 
   // Devam Et butonuna basıldığında yapılacak işlem
-  void _onContinuePressed() {
+  Future<void> _onContinuePressed() async {
     if (_isContinueEnabled) {
-      for (var i = 0; i < selectedImages.length; i++) {
-        if (selectedImages[i] != null) {
-          _saveImageToDatabase(widget.userId, selectedImages[i]!.path);
-        }
-      }
-      // İşlem tamamlandığında yönlendirme veya başka bir işlem yapılabilir
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Firebase'e resimleri yükle
+      await _uploadImagesToFirebase();
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      // İşlem tamamlandığında yönlendirme
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => UploadCv(userId: widget.userId,)),
+        MaterialPageRoute(
+          builder: (context) => UploadCVPage(userId: widget.userId),
+        ),
       );
     }
   }
@@ -112,97 +165,122 @@ class _UploadImagePageState extends State<UploadImagePage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Column(
-              children: [
-                Text(
-                  "Fotoğraf Ekle",
-                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+      body:
+          _isLoading
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 20),
+                    Text("Resimler yükleniyor..."),
+                  ],
                 ),
-                Text(
-                  "Devam etmek için minimum 2 fotoğraf eklemelisiniz!",
-                  style: TextStyle(color: Colors.grey, fontSize: 15),
-                ),
-              ],
-            ),
-            Column(
-              children: [
-                // İlk satır (3 buton)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: List.generate(
-                    3,
-                    (index) => _buildImageContainer(index),
-                  ),
-                ),
-                SizedBox(height: 30),
-                // İkinci satır (3 buton)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: List.generate(
-                    3,
-                    (index) => _buildImageContainer(index + 3),
-                  ),
-                ),
-                SizedBox(height: 90),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 16.0),
-                    child: InkWell(
-                      onTap: _isContinueEnabled ? _onContinuePressed : null,
-                      child: Container(
-                        height: 50,
-                        width: 150,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.black, width: 1),
-                          color:
-                              _isContinueEnabled
-                                  ? colorScheme.onPrimary
-                                  : Colors.grey,
-                          borderRadius: BorderRadius.circular(50),
-                          boxShadow:
-                              _isContinueEnabled
-                                  ? [
-                                    BoxShadow(
-                                      color: Colors.indigo.withOpacity(
-                                        0.3,
-                                      ), // Gölge rengi
-                                      spreadRadius: 10, // Yayılma
-                                      blurRadius: 10, // Bulanıklık
-                                      offset: Offset(
-                                        1,
-                                        5,
-                                      ), // X ve Y ekseninde kayma
-                                    ),
-                                  ]
-                                  : [], // Pasifken shadow olmasın
+              )
+              : Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Column(
+                      children: [
+                        Text(
+                          "Fotoğraf Ekle",
+                          style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        child: Row(
+                        Text(
+                          "Devam etmek için minimum 2 fotoğraf eklemelisiniz!",
+                          style: TextStyle(color: Colors.grey, fontSize: 15),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        // İlk satır (3 buton)
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            Text(
-                              "Devam Et",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                          children: List.generate(
+                            3,
+                            (index) => _buildImageContainer(index),
+                          ),
+                        ),
+                        SizedBox(height: 30),
+                        // İkinci satır (3 buton)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: List.generate(
+                            3,
+                            (index) => _buildImageContainer(index + 3),
+                          ),
+                        ),
+                        SizedBox(height: 90),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 16.0),
+                            child: InkWell(
+                              onTap:
+                                  _isContinueEnabled
+                                      ? _onContinuePressed
+                                      : null,
+                              child: Container(
+                                height: 50,
+                                width: 150,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.black,
+                                    width: 1,
+                                  ),
+                                  color:
+                                      _isContinueEnabled
+                                          ? colorScheme.onPrimary
+                                          : Colors.grey,
+                                  borderRadius: BorderRadius.circular(50),
+                                  boxShadow:
+                                      _isContinueEnabled
+                                          ? [
+                                            BoxShadow(
+                                              color: Colors.indigo.withOpacity(
+                                                0.3,
+                                              ), // Gölge rengi
+                                              spreadRadius: 10, // Yayılma
+                                              blurRadius: 10, // Bulanıklık
+                                              offset: Offset(
+                                                1,
+                                                5,
+                                              ), // X ve Y ekseninde kayma
+                                            ),
+                                          ]
+                                          : [], // Pasifken shadow olmasın
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
+                                  children: [
+                                    Text(
+                                      "Devam Et",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_circle_right,
+                                      color: Colors.white,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            Icon(Icons.arrow_circle_right, color: Colors.white),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ],
-        ),
-      ),
+              ),
     );
   }
 
