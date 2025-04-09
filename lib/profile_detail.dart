@@ -6,22 +6,26 @@ import 'pages/message_page.dart';
 import 'users.dart';
 
 class ProfileDetail extends StatefulWidget {
-  final User? user;
+  final int userIndex;
 
-  const ProfileDetail({super.key, this.user});
+  const ProfileDetail({super.key, this.userIndex = 0});
 
   @override
   State<ProfileDetail> createState() => _ProfileDetailState();
 }
 
 class _ProfileDetailState extends State<ProfileDetail> {
-  late User profileUser;
+  late User currentUser;
 
   @override
   void initState() {
     super.initState();
-    // Eğer bir kullanıcı verilmişse onu, verilmemişse ilk kullanıcıyı göster
-    profileUser = widget.user ?? users.first;
+    // Kullanıcı indeksi geçerli bir aralıkta değilse, ilk kullanıcıyı göster
+    int safeIndex = widget.userIndex;
+    if (safeIndex < 0 || safeIndex >= users.length) {
+      safeIndex = 0;
+    }
+    currentUser = users[safeIndex];
   }
 
   @override
@@ -77,12 +81,11 @@ class _ProfileDetailState extends State<ProfileDetail> {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Banner görüntüsü
+            // Banner görüntüsü (kullanıcı resmini banner olarak kullanıyoruz)
             Image.asset(
-              profileUser.imagePath,
+              currentUser.imagePath,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
-                print("Profil resmi yüklenemedi: $error");
                 return Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -123,11 +126,10 @@ class _ProfileDetailState extends State<ProfileDetail> {
                     ),
                   ],
                   image: DecorationImage(
-                    image: AssetImage(profileUser.imagePath),
+                    image: AssetImage(currentUser.imagePath),
                     fit: BoxFit.cover,
                     onError: (exception, stackTrace) {
                       print("Profil resmi yüklenemedi");
-                      return;
                     },
                   ),
                 ),
@@ -163,7 +165,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "${profileUser.name}, ${profileUser.age}",
+                    "${currentUser.name}, ${currentUser.age}",
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 4),

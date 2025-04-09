@@ -149,99 +149,78 @@ class _HomePageState extends State<HomePage> {
     // Super Like göstergesinin görünürlüğü
     final showSuperLike = _currentAlignment.y < -0.5;
 
-    // Parmakla hareket etmesi için transform değerleri hesapla
-    final yTranslate = _currentAlignment.y * 50.0; // Yukarı-aşağı hareket
-    final yRotate = _currentAlignment.x * 0.2; // X ekseninde dönüş
-    final xRotate = _currentAlignment.y * 0.2; // Y ekseninde dönüş
-    final scale =
-        0.9 + (0.1 * (1 - _currentAlignment.y.abs())); // Ölçeklendirme
+    // Super like'a göre kartın transformu/hareketi
+    final transform = Matrix4.identity();
+    if (_currentAlignment.y < 0) {
+      // Yukarı kaydırma - giderek daha küçük göster ve yukarı kaydır
+      final scale = 1.0 - (_currentAlignment.y.abs() * 0.15); // Küçülme oranı
+      final yTranslate = _currentAlignment.y * 200; // Yukarı hareket miktarı
+      transform.translate(0.0, yTranslate);
+      transform.scale(scale);
+    }
 
     return Transform(
-      transform:
-          Matrix4.identity()
-            ..translate(0.0, yTranslate)
-            ..rotateX(xRotate)
-            ..rotateY(yRotate)
-            ..scale(scale),
+      transform: transform,
       alignment: Alignment.center,
-      child: GestureDetector(
-        onTap: () {
-          // Karta tıklandığında profil detayına gitsin
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProfileDetail(user: users[index]),
-            ),
-          );
-        },
-        child: Card(
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              children: [
-                // Ana resim
-                Positioned.fill(
-                  child: Image.asset(
-                    users[index].imagePath,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      print("Resim yüklenirken hata: $error");
-                      return Container(
-                        color: Colors.grey.shade300,
-                        child: Icon(
-                          Icons.image_not_supported,
-                          size: 100,
-                          color: Colors.grey,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                // Gradient overlay
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.6),
-                        ],
-                        stops: [0.6, 1.0],
+      child: Card(
+        elevation: 8,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              // Ana resim
+              Positioned.fill(
+                child: Image.asset(
+                  users[index].imagePath,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    print("Resim yüklenirken hata: $error");
+                    return Container(
+                      color: Colors.grey.shade300,
+                      child: Icon(
+                        Icons.image_not_supported,
+                        size: 100,
+                        color: Colors.grey,
                       ),
+                    );
+                  },
+                ),
+              ),
+              // Gradient overlay
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.6),
+                      ],
+                      stops: [0.6, 1.0],
                     ),
                   ),
                 ),
-                // Super Like İşareti (Yukarı kaydırma durumunda gösterilir)
-                if (showSuperLike)
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: Transform.rotate(
-                      angle: yRotate, // Karla birlikte hafif dönme efekti
-                      child: Container(
-                        margin: EdgeInsets.only(top: 40),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.blue.withOpacity(0.5),
-                              blurRadius: 15,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: Text(
+              ),
+              // Super Like İşareti (Yukarı kaydırma durumunda gösterilir)
+              if (showSuperLike)
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: Container(
+                    margin: EdgeInsets.only(top: 40),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star, color: Colors.white, size: 24),
+                        SizedBox(width: 8),
+                        Text(
                           "SUPER LIKE",
                           style: TextStyle(
                             color: Colors.white,
@@ -249,46 +228,43 @@ class _HomePageState extends State<HomePage> {
                             fontSize: 18,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                // Profil bilgileri
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        buildName(users[index]),
-                        SizedBox(height: 8),
-                        buildStatus(),
-                        SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              color: Colors.white70,
-                              size: 16,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              "5 km uzaklıkta",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
                 ),
-              ],
-            ),
+              // Profil bilgileri
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      buildName(users[index]),
+                      SizedBox(height: 8),
+                      buildStatus(),
+                      SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            color: Colors.white70,
+                            size: 16,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            "5 km uzaklıkta",
+                            style: TextStyle(color: Colors.white, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -429,10 +405,13 @@ class _HomePageState extends State<HomePage> {
             label: "Profil",
             isActive: false,
             onTap: () {
+              // Rastgele bir kullanıcı seçerek profil sayfasına git
+              final randomUserIndex = DateTime.now().millisecond % users.length;
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ProfileDetail(user: null),
+                  builder:
+                      (context) => ProfileDetail(userIndex: randomUserIndex),
                 ),
               );
             },

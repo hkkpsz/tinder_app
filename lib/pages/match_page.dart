@@ -314,10 +314,12 @@ class _MatchPageState extends State<MatchPage> {
             label: "Profil",
             isActive: false,
             onTap: () {
+              final randomUserIndex = DateTime.now().millisecond % users.length;
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ProfileDetail(user: null),
+                  builder:
+                      (context) => ProfileDetail(userIndex: randomUserIndex),
                 ),
               );
             },

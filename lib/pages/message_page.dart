@@ -342,10 +342,13 @@ class _MessagePageState extends State<MessagePage> {
             label: "Profil",
             isActive: false,
             onTap: () {
+              // Rastgele bir kullanıcı seçerek profil sayfasına git
+              final randomUserIndex = DateTime.now().millisecond % users.length;
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ProfileDetail(user: null),
+                  builder:
+                      (context) => ProfileDetail(userIndex: randomUserIndex),
                 ),
               );
             },
