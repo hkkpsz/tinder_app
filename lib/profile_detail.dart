@@ -20,12 +20,19 @@ class _ProfileDetailState extends State<ProfileDetail> {
   @override
   void initState() {
     super.initState();
-    // Kullanıcı indeksi geçerli bir aralıkta değilse, ilk kullanıcıyı göster
-    int safeIndex = widget.userIndex;
-    if (safeIndex < 0 || safeIndex >= users.length) {
-      safeIndex = 0;
+    // Eğer özel bir kullanıcı indeksi belirtilmişse kullan, aksi halde "Hakkı" adlı kullanıcıyı bul
+    if (widget.userIndex != 0) {
+      int safeIndex = widget.userIndex;
+      if (safeIndex < 0 || safeIndex >= users.length) {
+        safeIndex = 0;
+      }
+      currentUser = users[safeIndex];
+    } else {
+      // "Hakkı" adlı kullanıcıyı bul
+      int hakkiIndex = users.indexWhere((user) => user.name == "Hakkı");
+      // Eğer "Hakkı" bulunamazsa ilk kullanıcıyı göster
+      currentUser = hakkiIndex != -1 ? users[hakkiIndex] : users[0];
     }
-    currentUser = users[safeIndex];
   }
 
   @override
@@ -215,7 +222,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
         children: [
           SizedBox(height: 8),
           Text(
-            "Merhaba! Ben bir yazılım geliştiricisiyim ve doğa yürüyüşlerine bayılırım. Yeni insanlarla tanışmayı ve farklı kültürleri keşfetmeyi seviyorum.",
+            "Merhaba! Ben bir yazılım geliştiricisiyim ve bilgisayara bayılırım. Yeni insanlarla tanışmayı ve farklı kültürleri keşfetmeyi seviyorum.",
             style: TextStyle(fontSize: 16, color: Colors.black87, height: 1.4),
           ),
         ],
@@ -234,7 +241,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
           buildInterestChip("Spor"),
           buildInterestChip("Seyahat"),
           buildInterestChip("Fotoğrafçılık"),
-          buildInterestChip("Yemek Pişirme"),
+          buildInterestChip("Arkadaşlarla Sosyalleşmek"),
           buildInterestChip("Doğa Yürüyüşü"),
           buildInterestChip("Sinema"),
           buildInterestChip("Yoga"),

@@ -7,6 +7,7 @@ import 'package:ucanble_tinder/profile_detail.dart';
 import 'package:ucanble_tinder/pages/selection_page.dart';
 import '../users.dart';
 import 'package:ucanble_tinder/ikon_icons.dart';
+import 'package:postgres/postgres.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -16,6 +17,37 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  Future<Map<String, dynamic>> fetchUserData(int userId) async {
+    final connection = PostgreSQLConnection(
+      '10.0.2.2', // host bilgisi
+      5432, // port
+      'postgres', // veritabanı adı
+      username: 'postgres',
+      password: 'hktokat0660',
+    );
+
+    await connection.open();
+
+    final results = await connection.query(
+      'SELECT * FROM users WHERE id = @id',
+      substitutionValues: {'id': userId},
+    );
+
+    await connection.close();
+
+    if (results.isNotEmpty) {
+      print("sorun yok");
+      return {
+        'name': results.first[1],
+        'age': results.first[2],
+        'workplace': results.first[3],
+        'imagePath': results.first[4], // Resim yolu
+      };
+    } else {
+      return {}; // Kullanıcı bulunamadıysa boş döndür
+    }
+  }
+
   final CardController _cardController = CardController();
 
   // Kart kaydırma durumunu takip etmek için değişken
@@ -405,13 +437,17 @@ class _HomePageState extends State<HomePage> {
             label: "Profil",
             isActive: false,
             onTap: () {
-              // Rastgele bir kullanıcı seçerek profil sayfasına git
-              final randomUserIndex = DateTime.now().millisecond % users.length;
+              // Hakkı'nın profiline git
+              int hakkiIndex = users.indexWhere((user) => user.name == "Hakkı");
+              // Hakkı bulunamazsa rastgele bir profil göster
+              final userIndex =
+                  hakkiIndex != -1
+                      ? hakkiIndex
+                      : (DateTime.now().millisecond % users.length);
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder:
-                      (context) => ProfileDetail(userIndex: randomUserIndex),
+                  builder: (context) => ProfileDetail(userIndex: userIndex),
                 ),
               );
             },

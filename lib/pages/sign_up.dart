@@ -241,7 +241,7 @@ class _SignUpState extends State<SignUp> {
                         child: const Text(
                           "Hesabınız Var mı?\nGiriş Yapmak İçin Tıklayınız.",
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white),
+                          style: TextStyle(color: Colors.black),
                         ),
                       ),
                     ],

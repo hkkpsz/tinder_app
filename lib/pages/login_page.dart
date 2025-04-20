@@ -56,17 +56,20 @@ class _LoginPageState extends State<LoginPage> {
 
       // Kullanıcının profil durumunu kontrol et
       DocumentSnapshot userDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .get();
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
 
       setState(() {
         _isLoading = false;
       });
 
       // Ana sayfa yönlendirmesini kaldır, AuthenticationWrapper zaten doğru sayfaya yönlendirecek
-      Navigator.pop(context);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => UploadImagePage(userId: userId)),
+      ); // Burada kapanış parantezini doğru şekilde ekledik
     } else {
       setState(() {
         _isLoading = false;
@@ -78,6 +81,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
     }
+
   }
 
   @override
@@ -238,7 +242,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: Text(
                           "Hesabınız Yok mu?\nKayıt Olmak İçin Tıklayınız.",
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white),
+                          style: TextStyle(color: Colors.black),
                         ),
                       ),
                     ),
