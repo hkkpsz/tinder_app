@@ -13,6 +13,27 @@ class MatchPage extends StatefulWidget {
 }
 
 class _MatchPageState extends State<MatchPage> {
+  // Geçerli bir image URL oluşturmak için yardımcı metod
+  String _getValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      // Boş URL durumunda varsayılan bir Cloudinary URL göster
+      return 'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg';
+    }
+
+    // Cloudinary URL'si zaten tam olarak kullanılabilir
+    if (url.contains('cloudinary.com')) {
+      return url;
+    }
+
+    // Eğer URL zaten http:// veya https:// ile başlıyorsa, kullan
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    // Diğer tüm durumlarda varsayılan Cloudinary URL'si kullan
+    return 'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,51 +124,51 @@ class _MatchPageState extends State<MatchPage> {
                             offset: Offset(0, 5),
                           ),
                         ],
-                        image: DecorationImage(
-                          image: AssetImage(users[index].imagePath),
-                          fit: BoxFit.cover,
-                          onError: (exception, stackTrace) {
-                            print("Resim yüklenemedi");
-                            return;
-                          },
-                        ),
                       ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.7),
-                            ],
-                            stops: [0.6, 1.0],
-                          ),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                users[index].name,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            _buildUserImage(users[index].imagePath),
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withOpacity(0.7),
+                                  ],
+                                  stops: [0.6, 1.0],
                                 ),
                               ),
-                              Text(
-                                "${users[index].age} yaş",
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.all(12),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    users[index].name ?? 'İsimsiz',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Text(
+                                    "${users[index].age ?? '?'} yaş",
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -186,6 +207,36 @@ class _MatchPageState extends State<MatchPage> {
     );
   }
 
+  // Resim widget'ı oluşturan yardımcı metod
+  Widget _buildUserImage(String? imageUrl) {
+    final url = _getValidImageUrl(imageUrl);
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: CircularProgressIndicator(
+            color: Colors.red,
+            value:
+                loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                    : null,
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        print("Resim yüklenirken hata: $error");
+        return Container(
+          color: Colors.grey.shade300,
+          child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+        );
+      },
+    );
+  }
+
   Widget buildMatchCard(User user) {
     return Container(
       decoration: BoxDecoration(
@@ -205,18 +256,9 @@ class _MatchPageState extends State<MatchPage> {
         children: [
           Expanded(
             flex: 3,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                image: DecorationImage(
-                  image: AssetImage(user.imagePath),
-                  fit: BoxFit.cover,
-                  onError: (exception, stackTrace) {
-                    print("Resim yüklenemedi");
-                    return;
-                  },
-                ),
-              ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              child: _buildUserImage(user.imagePath),
             ),
           ),
           Expanded(
@@ -228,7 +270,7 @@ class _MatchPageState extends State<MatchPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "${user.name}, ${user.age}",
+                    "${user.name ?? 'İsimsiz'}, ${user.age ?? '?'}",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   SizedBox(height: 2),

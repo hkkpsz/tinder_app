@@ -1,19 +1,35 @@
 class User {
-  final String name;
-  final int age;
-  final String imagePath;
+  final String? name;
+  final int? age;
+  final String? workplace;
+  final String? imagePath;
+  final List<String>? additionalImages;
 
-  User({required this.name, required this.imagePath, required this.age});
+  User({
+    this.name,
+    this.age,
+    this.workplace,
+    this.imagePath,
+    this.additionalImages,
+  });
+
+  // Veritabanından kullanıcı verisi oluşturmak için factory method
+  factory User.fromDatabase({
+    required String name,
+    required int age,
+    required String workplace,
+    required String imagePath,
+    List<String>? additionalImages,
+  }) {
+    return User(
+      name: name,
+      age: age,
+      workplace: workplace,
+      imagePath: imagePath,
+      additionalImages: additionalImages,
+    );
+  }
 }
 
-final List<User> users = [
-  User(name: "Mona", age: 180, imagePath: "assets/images/mona.png"),
-  User(name: "Recep", age: 49, imagePath: "assets/images/recep.png"),
-  User(name: "Müslüm", age: 70, imagePath: "assets/images/muslum.png"),
-  User(name: "Dzeko", age: 39, imagePath: "assets/images/dzeko.png"),
-  User(name: "Polat", age: 28, imagePath: "assets/images/polat.png"),
-  User(name: "Fatih", age: 67, imagePath: "assets/images/fatih.png"),
-  User(name: "Alperen", age: 21, imagePath: "assets/images/alperen.png"),
-  User(name: "Hakkı", age: 20, imagePath: "assets/images/hakki.png"),
-  User(name: "Kayra", age: 21, imagePath: "assets/images/kayra.png"),
-];
+// Örnek kullanıcılar listesi. Bu liste artık veritabanından çekilecek.
+final List<User> users = [];

@@ -15,6 +15,27 @@ class MessagePage extends StatefulWidget {
 class _MessagePageState extends State<MessagePage> {
   late List<ChatPreview> _chatPreviews;
 
+  // Geçerli bir image URL oluşturmak için yardımcı metod
+  String _getValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      // Boş URL durumunda varsayılan bir Cloudinary URL göster
+      return 'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg';
+    }
+
+    // Cloudinary URL'si zaten tam olarak kullanılabilir
+    if (url.contains('cloudinary.com')) {
+      return url;
+    }
+
+    // Eğer URL zaten http:// veya https:// ile başlıyorsa, kullan
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    // Diğer tüm durumlarda varsayılan Cloudinary URL'si kullan
+    return 'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -55,10 +76,10 @@ class _MessagePageState extends State<MessagePage> {
     for (int i = 0; i < users.length && i < 9; i++) {
       _chatPreviews.add(
         ChatPreview(
-          name: users[i].name,
+          name: users[i].name ?? 'İsimsiz',
           lastMessage: messages[i % messages.length],
           time: times[i % times.length],
-          imageUrl: users[i].imagePath,
+          imageUrl: _getValidImageUrl(users[i].imagePath),
           unreadCount: (i == 0 || i == random % users.length) ? (i % 3) + 1 : 0,
         ),
       );
@@ -152,18 +173,20 @@ class _MessagePageState extends State<MessagePage> {
                                 spreadRadius: 1,
                               ),
                             ],
-                            image: DecorationImage(
-                              image: AssetImage(users[index].imagePath),
-                              fit: BoxFit.cover,
-                              onError: (exception, stackTrace) {
-                                print("Resim yüklenemedi");
-                                return;
-                              },
-                            ),
+                          ),
+                          child: ClipOval(
+                            child: _buildUserImage(users[index].imagePath),
                           ),
                         ),
-                        SizedBox(height: 6),
-                        Text(users[index].name, style: TextStyle(fontSize: 12)),
+                        SizedBox(height: 8),
+                        Text(
+                          users[index].name ?? 'İsimsiz',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -216,14 +239,8 @@ class _MessagePageState extends State<MessagePage> {
         leading: Container(
           width: 56,
           height: 56,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            image: DecorationImage(
-              image: AssetImage(chat.imageUrl),
-              fit: BoxFit.cover,
-              onError: (exception, stackTrace) => print("Resim yüklenemedi"),
-            ),
-          ),
+          decoration: BoxDecoration(shape: BoxShape.circle),
+          child: ClipOval(child: _buildUserImage(chat.imageUrl)),
         ),
         title: Row(
           children: [
@@ -397,6 +414,35 @@ class _MessagePageState extends State<MessagePage> {
           ),
         ],
       ),
+    );
+  }
+
+  // Widget to build user image from URL
+  Widget _buildUserImage(String? imageUrl) {
+    final url = _getValidImageUrl(imageUrl);
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: CircularProgressIndicator(
+            color: Colors.red,
+            value:
+                loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                    : null,
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey.shade200,
+          child: Icon(Icons.person, color: Colors.grey, size: 30),
+        );
+      },
     );
   }
 }

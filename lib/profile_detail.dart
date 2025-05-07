@@ -1,42 +1,406 @@
 import 'package:flutter/material.dart';
+import 'package:postgres/postgres.dart';
 import 'ikon_icons.dart';
 import 'pages/home_page.dart';
 import 'pages/match_page.dart';
 import 'pages/message_page.dart';
 import 'users.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileDetail extends StatefulWidget {
   final int userIndex;
+  final User? user;
+  final String? userId; // Firebase User ID
 
-  const ProfileDetail({super.key, this.userIndex = 0});
+  const ProfileDetail({super.key, this.userIndex = 0, this.user, this.userId});
 
   @override
   State<ProfileDetail> createState() => _ProfileDetailState();
 }
 
 class _ProfileDetailState extends State<ProfileDetail> {
-  late User currentUser;
+  User? currentUser;
+  bool isLoading = true;
+  String errorMessage = '';
+  final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Geçerli bir image URL oluşturmak için yardımcı metod
+  String _getValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      // Boş URL durumunda varsayılan bir URL göster
+      return 'https://ui-avatars.com/api/?name=User&background=random';
+    }
+
+    // Cloudinary URL'si zaten tam olarak kullanılabilir
+    if (url.contains('cloudinary.com')) {
+      return url;
+    }
+
+    // Eğer URL zaten http:// veya https:// ile başlıyorsa, kullan
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    // Diğer tüm durumlarda varsayılan URL'yi kullan
+    return 'https://ui-avatars.com/api/?name=User&background=random';
+  }
 
   @override
   void initState() {
     super.initState();
-    // Eğer özel bir kullanıcı indeksi belirtilmişse kullan, aksi halde "Hakkı" adlı kullanıcıyı bul
-    if (widget.userIndex != 0) {
-      int safeIndex = widget.userIndex;
-      if (safeIndex < 0 || safeIndex >= users.length) {
-        safeIndex = 0;
+    _loadCurrentUser();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      // Eğer doğrudan bir kullanıcı nesnesi verilmişse, onu kullan
+      if (widget.user != null) {
+        setState(() {
+          currentUser = widget.user;
+          isLoading = false;
+        });
+        return;
       }
-      currentUser = users[safeIndex];
-    } else {
-      // "Hakkı" adlı kullanıcıyı bul
-      int hakkiIndex = users.indexWhere((user) => user.name == "Hakkı");
-      // Eğer "Hakkı" bulunamazsa ilk kullanıcıyı göster
-      currentUser = hakkiIndex != -1 ? users[hakkiIndex] : users[0];
+
+      // Firebase'den mevcut oturum açmış kullanıcıyı al
+      final currentFirebaseUser = _auth.currentUser;
+      if (currentFirebaseUser != null) {
+        await _loadUserFromFirebase(currentFirebaseUser.uid);
+      } else if (widget.userId != null) {
+        // Eğer userId verilmişse o kullanıcıyı yükle
+        await _loadUserFromFirebase(widget.userId!);
+      } else {
+        // Eğer oturum açmış kullanıcı yoksa ve userId de verilmemişse hata mesajı göster
+        setState(() {
+          errorMessage = 'Giriş yapmış kullanıcı bulunamadı';
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Kullanıcı yüklenirken hata oluştu: $e';
+        isLoading = false;
+      });
+      print(errorMessage);
     }
+  }
+
+  Future<void> _loadUserFromFirebase(String userId) async {
+    try {
+      // Firebase'den kullanıcı bilgilerini al
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(userId).get();
+
+      if (!userDoc.exists) {
+        setState(() {
+          errorMessage = 'Kullanıcı profili bulunamadı';
+          isLoading = false;
+        });
+        return;
+      }
+
+      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+
+      // PostgreSQL'den kullanıcının resmini al
+      final userImages = await _fetchUserImagesFromPostgres(userId);
+
+      // User nesnesini oluştur
+      User user = User.fromDatabase(
+        name: userData['ad'] ?? 'İsimsiz',
+        age: userData['yas'] ?? 0,
+        workplace: userData['workplace'] ?? '',
+        imagePath:
+            userImages.isNotEmpty
+                ? userImages.first
+                : 'https://ui-avatars.com/api/?name=User&background=random',
+        additionalImages: userImages.length > 1 ? userImages.sublist(1) : [],
+      );
+
+      setState(() {
+        currentUser = user;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Kullanıcı profili yüklenirken hata oluştu: $e';
+        isLoading = false;
+      });
+      print(errorMessage);
+    }
+  }
+
+  Future<List<String>> _fetchUserImagesFromPostgres(String firebaseUid) async {
+    final connection = PostgreSQLConnection(
+      '10.0.2.2', // host bilgisi
+      5432, // port
+      'postgres', // veritabanı adı
+      username: 'postgres',
+      password: 'hktokat0660',
+    );
+
+    try {
+      await connection.open();
+
+      // Önce Firebase UID'ye göre PostgreSQL user_id'yi bul
+      final userIdResults = await connection.query(
+        'SELECT id FROM users WHERE firebase_uid = @firebaseUid',
+        substitutionValues: {'firebaseUid': firebaseUid},
+      );
+
+      if (userIdResults.isEmpty) {
+        return ['https://ui-avatars.com/api/?name=User&background=random'];
+      }
+
+      final userId = userIdResults.first[0];
+
+      // Kullanıcıya ait tüm resimleri çek
+      final imageResults = await connection.query(
+        'SELECT image_url FROM image WHERE user_id = @userId ORDER BY createdat DESC',
+        substitutionValues: {'userId': userId},
+      );
+
+      List<String> imagePaths = [];
+
+      for (final row in imageResults) {
+        String imageUrl = row[0]; // image_url
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          imagePaths.add(_getValidImageUrl(imageUrl));
+        }
+      }
+
+      // Eğer hiç resim bulunamadıysa varsayılan URL'yi ekle
+      if (imagePaths.isEmpty) {
+        imagePaths.add(
+          'https://ui-avatars.com/api/?name=User&background=random',
+        );
+      }
+
+      return imagePaths;
+    } catch (e) {
+      print("Kullanıcı resimleri çekilirken hata: $e");
+      return ['https://ui-avatars.com/api/?name=User&background=random'];
+    } finally {
+      await connection.close();
+    }
+  }
+
+  Future<List<User>> fetchUsersWithImages() async {
+    final connection = PostgreSQLConnection(
+      '10.0.2.2', // host bilgisi
+      5432, // port
+      'postgres', // veritabanı adı
+      username: 'postgres',
+      password: 'hktokat0660',
+    );
+
+    try {
+      await connection.open();
+      print("Veritabanı bağlantısı başarılı");
+
+      // Kullanıcıları çek
+      final userResults = await connection.query('SELECT * FROM users');
+
+      List<User> fetchedUsers = [];
+
+      // Her kullanıcı için resimleri çek
+      for (final userRow in userResults) {
+        final userId = userRow[0]; // user_id
+        final userName = userRow[2]; // name
+        final userAge = userRow[3]; // age
+        final userWorkplace = userRow[5]; // workplace
+
+        // Kullanıcıya ait resim bilgilerini çek
+        final imageResults = await connection.query(
+          'SELECT image_url FROM image WHERE user_id = @userId ORDER BY createdat DESC LIMIT 1',
+          substitutionValues: {'userId': userId},
+        );
+
+        // Varsayılan avatar URL'si
+        String imagePath =
+            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}&background=random';
+
+        if (imageResults.isNotEmpty) {
+          // Resim URL'sini al
+          String imageUrl = imageResults.first[0]; // image_url
+          if (imageUrl != null && imageUrl.isNotEmpty) {
+            imagePath = _getValidImageUrl(imageUrl);
+          }
+        }
+
+        fetchedUsers.add(
+          User.fromDatabase(
+            name: userName,
+            age: userAge,
+            workplace: userWorkplace,
+            imagePath: imagePath,
+          ),
+        );
+      }
+
+      return fetchedUsers;
+    } catch (e) {
+      print("Veritabanı hatası: $e");
+      throw Exception('Veritabanından kullanıcılar çekilemedi: $e');
+    } finally {
+      await connection.close();
+    }
+  }
+
+  // Kullanıcının tüm resimlerini çek
+  Future<List<String>> fetchUserImages(int userId) async {
+    final connection = PostgreSQLConnection(
+      '10.0.2.2', // host bilgisi
+      5432, // port
+      'postgres', // veritabanı adı
+      username: 'postgres',
+      password: 'hktokat0660',
+    );
+
+    try {
+      await connection.open();
+
+      // Kullanıcıya ait tüm resimleri çek
+      final imageResults = await connection.query(
+        'SELECT image_url FROM image WHERE user_id = @userId ORDER BY createdat DESC',
+        substitutionValues: {'userId': userId},
+      );
+
+      List<String> imagePaths = [];
+
+      for (final row in imageResults) {
+        String imageUrl = row[0]; // image_url
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          imagePaths.add(_getValidImageUrl(imageUrl));
+        }
+      }
+
+      // Eğer hiç resim bulunamadıysa varsayılan URL'yi ekle
+      if (imagePaths.isEmpty) {
+        imagePaths.add(
+          'https://ui-avatars.com/api/?name=User&background=random',
+        );
+      }
+
+      return imagePaths;
+    } catch (e) {
+      print("Kullanıcı resimleri çekilirken hata: $e");
+      return ['https://ui-avatars.com/api/?name=User&background=random'];
+    } finally {
+      await connection.close();
+    }
+  }
+
+  // Image widget oluşturan yardımcı metod
+  Widget _buildUserImage(String? imageUrl) {
+    final url = _getValidImageUrl(imageUrl);
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: CircularProgressIndicator(
+            color: Colors.red,
+            value:
+                loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                    : null,
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        // Sessizce hata loglamak yerine fallback avatar göster
+        return Container(
+          color: Colors.grey.shade200,
+          child: Icon(Icons.person, color: Colors.grey, size: 50),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("Profil Detayı"),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(child: CircularProgressIndicator(color: Colors.red)),
+      );
+    }
+
+    if (errorMessage.isNotEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("Profil Detayı"),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 60),
+              SizedBox(height: 16),
+              Text(
+                errorMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.red[700], fontSize: 16),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _loadCurrentUser,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text("Tekrar Dene"),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("Profil Detayı"),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.person_off, color: Colors.grey, size: 60),
+              SizedBox(height: 16),
+              Text(
+                "Kullanıcı bulunamadı",
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: CustomScrollView(
         physics: BouncingScrollPhysics(),
@@ -89,21 +453,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
           fit: StackFit.expand,
           children: [
             // Banner görüntüsü (kullanıcı resmini banner olarak kullanıyoruz)
-            Image.asset(
-              currentUser.imagePath,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Colors.red.shade300, Colors.redAccent.shade700],
-                    ),
-                  ),
-                );
-              },
-            ),
+            _buildUserImage(currentUser?.imagePath),
             // Gradient overlay
             Container(
               decoration: BoxDecoration(
@@ -132,14 +482,8 @@ class _ProfileDetailState extends State<ProfileDetail> {
                       spreadRadius: 2,
                     ),
                   ],
-                  image: DecorationImage(
-                    image: AssetImage(currentUser.imagePath),
-                    fit: BoxFit.cover,
-                    onError: (exception, stackTrace) {
-                      print("Profil resmi yüklenemedi");
-                    },
-                  ),
                 ),
+                child: ClipOval(child: _buildUserImage(currentUser?.imagePath)),
               ),
             ),
             // Düzenleme butonu
@@ -172,9 +516,24 @@ class _ProfileDetailState extends State<ProfileDetail> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "${currentUser.name}, ${currentUser.age}",
+                    "${currentUser?.name ?? 'İsimsiz'}, ${currentUser?.age ?? '?'}",
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
+                  SizedBox(height: 4),
+                  if (currentUser?.workplace != null)
+                    Row(
+                      children: [
+                        Icon(Icons.work, size: 16, color: Colors.grey[600]),
+                        SizedBox(width: 4),
+                        Text(
+                          currentUser!.workplace!,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
                   SizedBox(height: 4),
                   Row(
                     children: [
@@ -269,36 +628,50 @@ class _ProfileDetailState extends State<ProfileDetail> {
   }
 
   Widget buildPhotosSection() {
-    return buildSectionCard(
-      title: "Fotoğraflarım",
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-        ),
-        itemCount: 6,
-        itemBuilder: (context, index) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              "assets/image${index + 1}.jpg",
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[300],
-                  child: Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey[400],
-                  ),
-                );
-              },
+    return FutureBuilder<List<String>>(
+      future: fetchUserImages(widget.userIndex),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return buildSectionCard(
+            title: "Fotoğraflarım",
+            child: Center(child: CircularProgressIndicator(color: Colors.red)),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return buildSectionCard(
+            title: "Fotoğraflarım",
+            child: Center(
+              child: Text(
+                "Fotoğraflar yüklenirken hata oluştu",
+                style: TextStyle(color: Colors.red),
+              ),
             ),
           );
-        },
-      ),
+        }
+
+        List<String> images = snapshot.data ?? [];
+
+        return buildSectionCard(
+          title: "Fotoğraflarım",
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _buildUserImage(images[index]),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 

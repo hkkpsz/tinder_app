@@ -17,34 +17,103 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Future<Map<String, dynamic>> fetchUserData(int userId) async {
+  List<User> userList = [];
+  bool isLoading = true;
+  String errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final users = await fetchUsersWithImages();
+      setState(() {
+        userList = users;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Kullanıcılar yüklenirken hata oluştu: $e';
+        isLoading = false;
+      });
+      print(errorMessage);
+    }
+  }
+
+  Future<List<User>> fetchUsersWithImages() async {
     final connection = PostgreSQLConnection(
-      '10.0.2.2', // host bilgisi
+      '10.0.2.2', // Android emülatörü için host bilgisi
       5432, // port
       'postgres', // veritabanı adı
       username: 'postgres',
       password: 'hktokat0660',
+      timeoutInSeconds: 30, // Zaman aşımı süresini artır
+      timeZone: 'UTC', // Zaman dilimini belirt
+      useSSL: false, // SSL kullanımını kapat
     );
 
-    await connection.open();
+    try {
+      await connection.open();
+      print("PostgreSQL bağlantısı başarılı");
 
-    final results = await connection.query(
-      'SELECT * FROM users WHERE id = @id',
-      substitutionValues: {'id': userId},
-    );
+      // Kullanıcıları çek
+      final userResults = await connection.query('SELECT * FROM users');
 
-    await connection.close();
+      List<User> fetchedUsers = [];
 
-    if (results.isNotEmpty) {
-      print("sorun yok");
-      return {
-        'name': results.first[1],
-        'age': results.first[2],
-        'workplace': results.first[3],
-        'imagePath': results.first[4], // Resim yolu
-      };
-    } else {
-      return {}; // Kullanıcı bulunamadıysa boş döndür
+      // Her kullanıcı için resimleri çek
+      for (final userRow in userResults) {
+        final userId = userRow[0]; // user_id
+        final userName = userRow[2]; // name
+        final userAge = userRow[3]; // age
+        final userWorkplace = userRow[5]; // workplace
+
+        // Kullanıcıya ait tüm resim bilgilerini çek
+        final imageResults = await connection.query(
+          'SELECT image_url FROM image WHERE user_id = @userId ORDER BY createdat DESC',
+          substitutionValues: {'userId': userId},
+        );
+
+        List<String> imagePaths = [];
+
+        if (imageResults.isNotEmpty) {
+          for (final imageRow in imageResults) {
+            String imageUrl =
+                imageRow[0]; // image_url - sütun indeksini düzelttim
+            if (imageUrl != null && imageUrl.isNotEmpty) {
+              imagePaths.add(_getValidImageUrl(imageUrl));
+            }
+          }
+        }
+
+        // Eğer hiç resim yoksa varsayılan avatar URL'sini kullan
+        if (imagePaths.isEmpty) {
+          imagePaths.add(
+            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}&background=random',
+          );
+        }
+
+        fetchedUsers.add(
+          User.fromDatabase(
+            name: userName,
+            age: userAge,
+            workplace: userWorkplace,
+            imagePath: imagePaths.first, // Ana resim olarak ilk resmi kullan
+            additionalImages:
+                imagePaths.skip(1).toList(), // Diğer resimleri ekle
+          ),
+        );
+      }
+
+      return fetchedUsers;
+    } catch (e) {
+      print("Veritabanı hatası: $e");
+      throw Exception('Veritabanından kullanıcılar çekilemedi: $e');
+    } finally {
+      await connection.close();
     }
   }
 
@@ -119,55 +188,116 @@ class _HomePageState extends State<HomePage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               SizedBox(height: 10),
-              Expanded(
-                child: TinderSwapCard(
-                  swipeUp: true,
-                  swipeDown: true,
-                  orientation: AmassOrientation.bottom,
-                  totalNum: users.length,
-                  stackNum: 3,
-                  swipeEdge: 4.0,
-                  maxHeight: MediaQuery.of(context).size.height * 0.75,
-                  maxWidth: MediaQuery.of(context).size.width * 0.9,
-                  minWidth: MediaQuery.of(context).size.width * 0.8,
-                  minHeight: MediaQuery.of(context).size.height * 0.65,
-                  cardController: _cardController,
-                  cardBuilder: (context, index) => buildCard(context, index),
-                  swipeUpdateCallback: (
-                    DragUpdateDetails details,
-                    Alignment align,
-                  ) {
-                    setState(() {
-                      _currentAlignment = align;
-                    });
-                    if (align.x < 0) {
-                      print("Kart sola kaydırılıyor ❌");
-                    } else if (align.x > 0) {
-                      print("Kart sağa kaydırılıyor ❤️");
-                    } else if (align.y < 0) {
-                      print("Kart yukarı kaydırılıyor ⭐");
-                    }
-                  },
-                  swipeCompleteCallback: (
-                    CardSwipeOrientation orientation,
-                    int index,
-                  ) {
-                    setState(() {
-                      _currentAlignment = Alignment.center;
-                    });
-                    if (orientation == CardSwipeOrientation.right) {
-                      print("Kart sağa kaydırıldı ❤️");
-                    } else if (orientation == CardSwipeOrientation.left) {
-                      print("Kart sola kaydırıldı ❌");
-                    } else if (orientation == CardSwipeOrientation.up) {
-                      print("Kart yukarı kaydırıldı ⭐ Super Like!");
-                      _showSuperLikeDialog(index);
-                    }
-                  },
-                ),
-              ),
+              isLoading
+                  ? Expanded(
+                    child: Center(
+                      child: CircularProgressIndicator(color: Colors.red),
+                    ),
+                  )
+                  : errorMessage.isNotEmpty
+                  ? Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            color: Colors.red,
+                            size: 60,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            errorMessage,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.red[700],
+                              fontSize: 16,
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: _loadUsers,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: Text("Tekrar Dene"),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  : userList.isEmpty
+                  ? Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.person_off, color: Colors.grey, size: 60),
+                          SizedBox(height: 16),
+                          Text(
+                            "Kullanıcı bulunamadı",
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  : Expanded(
+                    child: TinderSwapCard(
+                      swipeUp: true,
+                      swipeDown: true,
+                      orientation: AmassOrientation.bottom,
+                      totalNum: userList.length,
+                      stackNum: 3,
+                      swipeEdge: 4.0,
+                      maxHeight: MediaQuery.of(context).size.height * 0.75,
+                      maxWidth: MediaQuery.of(context).size.width * 0.9,
+                      minWidth: MediaQuery.of(context).size.width * 0.8,
+                      minHeight: MediaQuery.of(context).size.height * 0.65,
+                      cardController: _cardController,
+                      cardBuilder:
+                          (context, index) => buildCard(context, index),
+                      swipeUpdateCallback: (
+                        DragUpdateDetails details,
+                        Alignment align,
+                      ) {
+                        setState(() {
+                          _currentAlignment = align;
+                        });
+                        if (align.x < 0) {
+                          print("Kart sola kaydırılıyor ❌");
+                        } else if (align.x > 0) {
+                          print("Kart sağa kaydırılıyor ❤️");
+                        } else if (align.y < 0) {
+                          print("Kart yukarı kaydırılıyor ⭐");
+                        }
+                      },
+                      swipeCompleteCallback: (
+                        CardSwipeOrientation orientation,
+                        int index,
+                      ) {
+                        setState(() {
+                          _currentAlignment = Alignment.center;
+                        });
+                        if (orientation == CardSwipeOrientation.right) {
+                          print("Kart sağa kaydırıldı ❤️");
+                        } else if (orientation == CardSwipeOrientation.left) {
+                          print("Kart sola kaydırıldı ❌");
+                        } else if (orientation == CardSwipeOrientation.up) {
+                          print("Kart yukarı kaydırıldı ⭐ Super Like!");
+                          _showSuperLikeDialog(index);
+                        }
+                      },
+                    ),
+                  ),
               SizedBox(height: 20),
-              buildActionButtons(),
+              if (!isLoading && errorMessage.isEmpty && userList.isNotEmpty)
+                buildActionButtons(),
               SizedBox(height: 10),
             ],
           ),
@@ -178,6 +308,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget buildCard(BuildContext context, int index) {
+    final user = userList[index];
+
     // Super Like göstergesinin görünürlüğü
     final showSuperLike = _currentAlignment.y < -0.5;
 
@@ -202,23 +334,7 @@ class _HomePageState extends State<HomePage> {
           child: Stack(
             children: [
               // Ana resim
-              Positioned.fill(
-                child: Image.asset(
-                  users[index].imagePath,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    print("Resim yüklenirken hata: $error");
-                    return Container(
-                      color: Colors.grey.shade300,
-                      child: Icon(
-                        Icons.image_not_supported,
-                        size: 100,
-                        color: Colors.grey,
-                      ),
-                    );
-                  },
-                ),
-              ),
+              Positioned.fill(child: _buildUserImage(user.imagePath)),
               // Gradient overlay
               Positioned.fill(
                 child: Container(
@@ -274,10 +390,25 @@ class _HomePageState extends State<HomePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      buildName(users[index]),
+                      buildName(user),
                       SizedBox(height: 8),
                       buildStatus(),
-                      SizedBox(height: 12),
+                      SizedBox(height: 8),
+                      if (user.workplace != null && user.workplace!.isNotEmpty)
+                        Row(
+                          children: [
+                            Icon(Icons.work, color: Colors.white70, size: 16),
+                            SizedBox(width: 4),
+                            Text(
+                              user.workplace!,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      SizedBox(height: 4),
                       Row(
                         children: [
                           Icon(
@@ -300,6 +431,55 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  // Geçerli bir image URL oluşturmak için yardımcı metod
+  String _getValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      // Boş URL durumunda varsayılan bir avatar URL'si göster
+      return 'https://ui-avatars.com/api/?name=User&background=random';
+    }
+
+    // Eğer URL zaten http:// veya https:// ile başlıyorsa, kullan
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    // Diğer tüm durumlarda varsayılan avatar URL'si kullan
+    return 'https://ui-avatars.com/api/?name=User&background=random';
+  }
+
+  // Resim widget'ı oluşturan yardımcı metod
+  Widget _buildUserImage(String? imageUrl) {
+    final url = _getValidImageUrl(imageUrl);
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: Colors.grey.shade200,
+          child: Center(
+            child: CircularProgressIndicator(
+              color: Colors.red,
+              value:
+                  loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                      : null,
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        print("Resim yüklenirken hata: $error");
+        return Container(
+          color: Colors.grey.shade300,
+          child: Icon(Icons.image_not_supported, size: 100, color: Colors.grey),
+        );
+      },
     );
   }
 
@@ -438,12 +618,14 @@ class _HomePageState extends State<HomePage> {
             isActive: false,
             onTap: () {
               // Hakkı'nın profiline git
-              int hakkiIndex = users.indexWhere((user) => user.name == "Hakkı");
+              int hakkiIndex = userList.indexWhere(
+                (user) => user.name == "Hakkı",
+              );
               // Hakkı bulunamazsa rastgele bir profil göster
               final userIndex =
                   hakkiIndex != -1
                       ? hakkiIndex
-                      : (DateTime.now().millisecond % users.length);
+                      : (DateTime.now().millisecond % userList.length);
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -566,7 +748,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   SizedBox(height: 12),
                   Text(
-                    "${users[index].name} kullanıcısına Super Like gönderdiniz!",
+                    "${userList[index].name} kullanıcısına Super Like gönderdiniz!",
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),

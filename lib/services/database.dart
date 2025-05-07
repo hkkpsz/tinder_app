@@ -74,10 +74,10 @@ class DatabaseService {
     return users;
   }
 
-  // Bir kullanıcının tüm resimlerini getiren metod - Dosya yolları yerine resimlerin kendisini getireceğiz
+  // Bir kullanıcının tüm resimlerini getiren metod - Cloudinary URL'lerini kullanır
   Future<List<String>> getUserImages(int userId) async {
     try {
-      // Sadece resim URL'lerini değil direk resim datalarını çekmeye çalışıyoruz
+      // Sadece resim URL'lerini çekiyoruz
       final results = await connection.query(
         'SELECT image_url FROM image WHERE user_id = @userId ORDER BY id',
         substitutionValues: {'userId': userId},
@@ -87,19 +87,56 @@ class DatabaseService {
       for (var row in results) {
         if (row[0] != null) {
           final urlString = row[0] as String;
-          imageUrls.add(urlString);
-          print(
-            "Resim URL'si alındı: ${urlString.substring(0, urlString.length > 20 ? 20 : urlString.length)}...",
-          ); // URL'nin ilk kısmını göster
+
+          // Cloudinary URL'i ile başlıyorsa doğrudan kullan
+          if (urlString.contains('cloudinary.com')) {
+            imageUrls.add(urlString);
+            print("Cloudinary URL'si bulundu: $urlString");
+          } else {
+            // Diğer URL'ler için geçerli URL oluştur
+            imageUrls.add(_getValidImageUrl(urlString));
+            print("Geçerli URL oluşturuldu: ${_getValidImageUrl(urlString)}");
+          }
         }
       }
 
       print("Kullanıcı $userId için ${imageUrls.length} resim bulundu");
+
+      // Eğer hiç resim bulunamadıysa varsayılan Cloudinary URL'sini ekle
+      if (imageUrls.isEmpty) {
+        imageUrls.add(
+          'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg',
+        );
+      }
+
       return imageUrls;
     } catch (e) {
       print("Kullanıcı resimleri getirilirken hata: $e");
-      return [];
+      return [
+        'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg',
+      ];
     }
+  }
+
+  // Geçerli bir image URL oluşturmak için yardımcı metod
+  String _getValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      // Boş URL durumunda varsayılan bir Cloudinary URL göster
+      return 'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg';
+    }
+
+    // Cloudinary URL'si zaten tam olarak kullanılabilir
+    if (url.contains('cloudinary.com')) {
+      return url;
+    }
+
+    // Eğer URL zaten http:// veya https:// ile başlıyorsa, kullan
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    // Diğer tüm durumlarda varsayılan Cloudinary URL'si kullan
+    return 'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg';
   }
 
   // SQL sorgusu çalıştırıp sonuçları gösteren yardımcı metot
