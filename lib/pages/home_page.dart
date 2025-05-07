@@ -8,6 +8,8 @@ import 'package:ucanble_tinder/pages/selection_page.dart';
 import '../users.dart';
 import 'package:ucanble_tinder/ikon_icons.dart';
 import 'package:postgres/postgres.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,6 +22,8 @@ class _HomePageState extends State<HomePage> {
   List<User> userList = [];
   bool isLoading = true;
   String errorMessage = '';
+  final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -40,6 +44,35 @@ class _HomePageState extends State<HomePage> {
         isLoading = false;
       });
       print(errorMessage);
+    }
+  }
+
+  // Kullanıcı aksiyonlarını Firestore'a kaydet
+  Future<void> _saveUserAction(User targetUser, String actionType) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        print('Oturum açmış kullanıcı bulunamadı');
+        return;
+      }
+
+      // Aksiyon koleksiyonuna veri ekle
+      await _firestore.collection('userActions').add({
+        'userId': currentUser.uid,
+        'targetUserId': targetUser.userId,
+        'targetUserName': targetUser.name,
+        'targetUserAge': targetUser.age,
+        'targetUserImage': targetUser.imagePath,
+        'targetUserWorkplace': targetUser.workplace,
+        'actionType': actionType, // 'like', 'dislike', 'superlike'
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      print(
+        'Kullanıcı aksiyonu başarıyla kaydedildi: $actionType - ${targetUser.name}',
+      );
+    } catch (e) {
+      print('Kullanıcı aksiyonu kaydedilirken hata oluştu: $e');
     }
   }
 
@@ -114,6 +147,7 @@ class _HomePageState extends State<HomePage> {
                     : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}&background=random',
             additionalImages:
                 imagePaths.length > 1 ? imagePaths.sublist(1) : [],
+            userId: firebaseUid != null ? firebaseUid : userId.toString(),
           ),
         );
       }
@@ -295,10 +329,13 @@ class _HomePageState extends State<HomePage> {
                         });
                         if (orientation == CardSwipeOrientation.right) {
                           print("Kart sağa kaydırıldı ❤️");
+                          _saveUserAction(userList[index], 'like');
                         } else if (orientation == CardSwipeOrientation.left) {
                           print("Kart sola kaydırıldı ❌");
+                          _saveUserAction(userList[index], 'dislike');
                         } else if (orientation == CardSwipeOrientation.up) {
                           print("Kart yukarı kaydırıldı ⭐ Super Like!");
+                          _saveUserAction(userList[index], 'superlike');
                           _showSuperLikeDialog(index);
                         }
                       },
@@ -498,8 +535,11 @@ class _HomePageState extends State<HomePage> {
       children: [
         _buildActionButton(
           onTap: () {
-            _cardController.triggerLeft();
-            print("Kart sola kaydırıldı ❌");
+            if (userList.isNotEmpty) {
+              _saveUserAction(userList[0], 'dislike');
+              _cardController.triggerLeft();
+              print("Kart sola kaydırıldı ❌");
+            }
           },
           color: Colors.white,
           icon: Icons.close,
@@ -509,8 +549,11 @@ class _HomePageState extends State<HomePage> {
         SizedBox(width: 20),
         _buildActionButton(
           onTap: () {
-            _cardController.triggerUp();
-            print("Kart yukarı kaydırıldı ⭐");
+            if (userList.isNotEmpty) {
+              _saveUserAction(userList[0], 'superlike');
+              _cardController.triggerUp();
+              print("Kart yukarı kaydırıldı ⭐");
+            }
           },
           color: Colors.blue,
           icon: Icons.star,
@@ -520,8 +563,11 @@ class _HomePageState extends State<HomePage> {
         SizedBox(width: 20),
         _buildActionButton(
           onTap: () {
-            _cardController.triggerRight();
-            print("Kart sağa kaydırıldı ❤️");
+            if (userList.isNotEmpty) {
+              _saveUserAction(userList[0], 'like');
+              _cardController.triggerRight();
+              print("Kart sağa kaydırıldı ❤️");
+            }
           },
           color: Colors.red,
           icon: Ikon.heart,
@@ -626,23 +672,35 @@ class _HomePageState extends State<HomePage> {
             label: "Profil",
             isActive: false,
             onTap: () {
-              // Hakkı'nın profiline git
-              int hakkiIndex = userList.indexWhere(
-                (user) => user.name == "Hakkı",
-              );
-              // Hakkı bulunamazsa rastgele bir profil göster
-              final userIndex =
-                  hakkiIndex != -1
-                      ? hakkiIndex
-                      : (userList.isEmpty
-                          ? 0
-                          : DateTime.now().millisecond % userList.length);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfileDetail(userIndex: userIndex),
-                ),
-              );
+              // Profil sayfasına git (mevcut kullanıcı için)
+              final currentUser = _auth.currentUser;
+              if (currentUser != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => ProfileDetail(userId: currentUser.uid),
+                  ),
+                );
+              } else {
+                // Eğer giriş yapmış kullanıcı yoksa, varsayılan profil göster
+                int hakkiIndex = userList.indexWhere(
+                  (user) => user.name == "Hakkı",
+                );
+                // Hakkı bulunamazsa rastgele bir profil göster
+                final userIndex =
+                    hakkiIndex != -1
+                        ? hakkiIndex
+                        : (userList.isEmpty
+                            ? 0
+                            : DateTime.now().millisecond % userList.length);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfileDetail(userIndex: userIndex),
+                  ),
+                );
+              }
             },
           ),
         ],

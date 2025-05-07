@@ -3,23 +3,27 @@ class User {
   final int? age;
   final String? workplace;
   final String? imagePath;
-  final List<String>? additionalImages;
+  final List<String> additionalImages;
+  final String?
+  userId; // Kullanıcının benzersiz kimliği (Firebase UID veya PostgreSQL ID)
 
   User({
     this.name,
     this.age,
     this.workplace,
     this.imagePath,
-    this.additionalImages,
+    this.additionalImages = const [],
+    this.userId,
   });
 
   // Veritabanından kullanıcı verisi oluşturmak için factory method
   factory User.fromDatabase({
     required String name,
     required int age,
-    required String workplace,
+    String? workplace,
     required String imagePath,
-    List<String>? additionalImages,
+    List<String> additionalImages = const [],
+    String? userId,
   }) {
     return User(
       name: name,
@@ -27,6 +31,7 @@ class User {
       workplace: workplace,
       imagePath: imagePath,
       additionalImages: additionalImages,
+      userId: userId,
     );
   }
 }

@@ -8,6 +8,7 @@ import 'users.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'pages/upload_image.dart';
+import 'pages/login_page.dart';
 
 class ProfileDetail extends StatefulWidget {
   final int userIndex;
@@ -26,6 +27,11 @@ class _ProfileDetailState extends State<ProfileDetail> {
   String errorMessage = '';
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Kullanıcı bilgileri
+  String? aboutMe;
+  List<String> interests = [];
+  bool isCurrentUserProfile = false;
 
   // Geçerli bir image URL oluşturmak için yardımcı metod
   String _getValidImageUrl(String? url) {
@@ -56,8 +62,13 @@ class _ProfileDetailState extends State<ProfileDetail> {
 
   Future<void> _loadCurrentUser() async {
     try {
+      print(
+        "_loadCurrentUser çağrıldı: userIndex=${widget.userIndex}, userId=${widget.userId}",
+      );
+
       // Eğer doğrudan bir kullanıcı nesnesi verilmişse, onu kullan
       if (widget.user != null) {
+        print("Widget user kullanılıyor");
         setState(() {
           currentUser = widget.user;
           isLoading = false;
@@ -65,13 +76,18 @@ class _ProfileDetailState extends State<ProfileDetail> {
         return;
       }
 
-      // Firebase'den mevcut oturum açmış kullanıcıyı al
+      // Eğer userId verilmişse öncelikle o kullanıcıyı yükle
+      if (widget.userId != null) {
+        print("userId verilmiş, bu kullanıcı yüklenecek: ${widget.userId}");
+        await _loadUserFromFirebase(widget.userId!);
+        return;
+      }
+
+      // Eğer giriş yapmış kullanıcı varsa ve userId verilmemişse, giriş yapmış kullanıcıyı göster
       final currentFirebaseUser = _auth.currentUser;
       if (currentFirebaseUser != null) {
+        print("Current Firebase User yükleniyor: ${currentFirebaseUser.uid}");
         await _loadUserFromFirebase(currentFirebaseUser.uid);
-      } else if (widget.userId != null) {
-        // Eğer userId verilmişse o kullanıcıyı yükle
-        await _loadUserFromFirebase(widget.userId!);
       } else {
         // Eğer oturum açmış kullanıcı yoksa ve userId de verilmemişse hata mesajı göster
         setState(() {
@@ -90,11 +106,14 @@ class _ProfileDetailState extends State<ProfileDetail> {
 
   Future<void> _loadUserFromFirebase(String userId) async {
     try {
+      print("Firebase'den kullanıcı yükleniyor: $userId");
+
       // Firebase'den kullanıcı bilgilerini al
       DocumentSnapshot userDoc =
           await _firestore.collection('users').doc(userId).get();
 
       if (!userDoc.exists) {
+        print("Kullanıcı ($userId) Firestore'da bulunamadı!");
         setState(() {
           errorMessage = 'Kullanıcı profili bulunamadı';
           isLoading = false;
@@ -103,46 +122,85 @@ class _ProfileDetailState extends State<ProfileDetail> {
       }
 
       Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+      print("Kullanıcı bilgileri alındı: ${userData['ad']}");
+
+      // Mevcut kullanıcı kendi profilini mi görüntülüyor?
+      isCurrentUserProfile = _auth.currentUser?.uid == userId;
+      print("Mevcut kullanıcı profili mi: $isCurrentUserProfile");
+
+      // Kullanıcı hakkında ve ilgi alanları bilgilerini al
+      aboutMe = userData['aboutMe'];
+
+      // Interests listesini çek (Firestore'da array olarak saklanıyor)
+      if (userData['interests'] != null) {
+        interests = List<String>.from(userData['interests']);
+        print("İlgi alanları: $interests");
+      }
 
       // PostgreSQL'den kullanıcının resmini al
-      final userImages = await _fetchUserImagesFromPostgres(userId);
+      try {
+        final userImages = await _fetchUserImagesFromPostgres(userId);
+        print("Postgres'ten ${userImages.length} resim alındı");
 
-      // User nesnesini oluştur
-      User user = User.fromDatabase(
-        name: userData['ad'] ?? 'İsimsiz',
-        age: userData['yas'] ?? 0,
-        workplace: userData['workplace'] ?? '',
-        imagePath:
-            userImages.isNotEmpty
-                ? userImages.first
-                : 'https://ui-avatars.com/api/?name=User&background=random',
-        additionalImages: userImages.length > 1 ? userImages.sublist(1) : [],
-      );
+        // User nesnesini oluştur
+        User user = User.fromDatabase(
+          name: userData['ad'] ?? 'İsimsiz',
+          age: userData['yas'] ?? 0,
+          workplace: userData['workplace'] ?? '',
+          imagePath:
+              userImages.isNotEmpty
+                  ? userImages.first
+                  : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userData['ad'] ?? 'User')}&background=random',
+          additionalImages: userImages.length > 1 ? userImages.sublist(1) : [],
+          userId: userId, // Firebase UID'yi kullanıcı nesnesine ekle
+        );
 
-      setState(() {
-        currentUser = user;
-        isLoading = false;
-      });
+        setState(() {
+          currentUser = user;
+          isLoading = false;
+        });
+      } catch (e) {
+        print("Resim yüklenirken hata, varsayılan avatar kullanılacak: $e");
+        // Resimler yüklenemese bile kullanıcıyı göster
+        User user = User.fromDatabase(
+          name: userData['ad'] ?? 'İsimsiz',
+          age: userData['yas'] ?? 0,
+          workplace: userData['workplace'] ?? '',
+          imagePath:
+              'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userData['ad'] ?? 'User')}&background=random',
+          additionalImages: [],
+          userId: userId,
+        );
+
+        setState(() {
+          currentUser = user;
+          isLoading = false;
+        });
+      }
     } catch (e) {
+      print("Kullanıcı profili yüklenirken hata: $e");
       setState(() {
         errorMessage = 'Kullanıcı profili yüklenirken hata oluştu: $e';
         isLoading = false;
       });
-      print(errorMessage);
     }
   }
 
   Future<List<String>> _fetchUserImagesFromPostgres(String firebaseUid) async {
+    print("PostgreSQL'den kullanıcı resimleri çekiliyor: $firebaseUid");
+
     final connection = PostgreSQLConnection(
       '10.0.2.2', // host bilgisi
       5432, // port
       'postgres', // veritabanı adı
       username: 'postgres',
       password: 'hktokat0660',
+      timeoutInSeconds: 30, // Zaman aşımı süresini artır
     );
 
     try {
       await connection.open();
+      print("PostgreSQL bağlantısı başarılı");
 
       // Önce Firebase UID'ye göre PostgreSQL user_id'yi bul
       final userIdResults = await connection.query(
@@ -151,10 +209,15 @@ class _ProfileDetailState extends State<ProfileDetail> {
       );
 
       if (userIdResults.isEmpty) {
+        print(
+          "PostgreSQL'de firebase_uid: $firebaseUid için kullanıcı bulunamadı",
+        );
+        await connection.close();
         return ['https://ui-avatars.com/api/?name=User&background=random'];
       }
 
       final userId = userIdResults.first[0];
+      print("PostgreSQL user_id: $userId");
 
       // Kullanıcıya ait tüm resimleri çek
       final imageResults = await connection.query(
@@ -171,6 +234,8 @@ class _ProfileDetailState extends State<ProfileDetail> {
         }
       }
 
+      print("Bulunan resim sayısı: ${imagePaths.length}");
+
       // Eğer hiç resim bulunamadıysa varsayılan URL'yi ekle
       if (imagePaths.isEmpty) {
         imagePaths.add(
@@ -178,12 +243,12 @@ class _ProfileDetailState extends State<ProfileDetail> {
         );
       }
 
+      await connection.close();
       return imagePaths;
     } catch (e) {
       print("Kullanıcı resimleri çekilirken hata: $e");
+      // Hata durumunda varsayılan resim göster
       return ['https://ui-avatars.com/api/?name=User&background=random'];
-    } finally {
-      await connection.close();
     }
   }
 
@@ -576,13 +641,24 @@ class _ProfileDetailState extends State<ProfileDetail> {
 
   Widget buildAboutSection() {
     return buildSectionCard(
-      title: "Hakkımda",
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text("Hakkımda"),
+          IconButton(
+            icon: Icon(Icons.edit, color: Colors.red, size: 20),
+            onPressed: _showEditAboutMeDialog,
+            tooltip: "Hakkımda bilgisini düzenle",
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(height: 8),
           Text(
-            "Merhaba! Ben bir yazılım geliştiricisiyim ve bilgisayara bayılırım. Yeni insanlarla tanışmayı ve farklı kültürleri keşfetmeyi seviyorum.",
+            aboutMe ??
+                "Merhaba! Ben bir yazılım geliştiricisiyim ve bilgisayara bayılırım. Yeni insanlarla tanışmayı ve farklı kültürleri keşfetmeyi seviyorum.",
             style: TextStyle(fontSize: 16, color: Colors.black87, height: 1.4),
           ),
         ],
@@ -592,20 +668,35 @@ class _ProfileDetailState extends State<ProfileDetail> {
 
   Widget buildInterestsSection() {
     return buildSectionCard(
-      title: "İlgi Alanlarım",
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text("İlgi Alanlarım"),
+          IconButton(
+            icon: Icon(Icons.edit, color: Colors.red, size: 20),
+            onPressed: _showEditInterestsDialog,
+            tooltip: "İlgi alanlarını düzenle",
+          ),
+        ],
+      ),
       child: Wrap(
         spacing: 10,
         runSpacing: 10,
-        children: [
-          buildInterestChip("Müzik"),
-          buildInterestChip("Spor"),
-          buildInterestChip("Seyahat"),
-          buildInterestChip("Fotoğrafçılık"),
-          buildInterestChip("Arkadaşlarla Sosyalleşmek"),
-          buildInterestChip("Doğa Yürüyüşü"),
-          buildInterestChip("Sinema"),
-          buildInterestChip("Yoga"),
-        ],
+        children:
+            interests.isNotEmpty
+                ? interests
+                    .map((interest) => buildInterestChip(interest))
+                    .toList()
+                : [
+                  buildInterestChip("Müzik"),
+                  buildInterestChip("Spor"),
+                  buildInterestChip("Seyahat"),
+                  buildInterestChip("Fotoğrafçılık"),
+                  buildInterestChip("Arkadaşlarla Sosyalleşmek"),
+                  buildInterestChip("Doğa Yürüyüşü"),
+                  buildInterestChip("Sinema"),
+                  buildInterestChip("Yoga"),
+                ],
       ),
     );
   }
@@ -629,8 +720,19 @@ class _ProfileDetailState extends State<ProfileDetail> {
   }
 
   Widget buildPhotosSection() {
+    // Kullanıcının kendi profili ise ve aktif bir Firebase kullanıcısı varsa
+    final firebaseUser = _auth.currentUser;
+    final bool isOwnProfile = isCurrentUserProfile && firebaseUser != null;
+
     return FutureBuilder<List<String>>(
-      future: fetchUserImages(widget.userIndex),
+      future:
+          isOwnProfile
+              ? _fetchUserImagesFromPostgres(
+                firebaseUser!.uid,
+              ) // Kendi UID'sine göre resimleri çek
+              : fetchUserImages(
+                widget.userIndex,
+              ), // Başka kullanıcının resimleri için userIndex kullan
       builder: (context, snapshot) {
         Widget content;
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -644,45 +746,117 @@ class _ProfileDetailState extends State<ProfileDetail> {
           );
         } else {
           List<String> images = snapshot.data ?? [];
-          content = GridView.builder(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-            ),
-            itemCount: images.length,
-            itemBuilder: (context, index) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: _buildUserImage(images[index]),
-              );
-            },
-          );
+
+          if (images.isEmpty) {
+            // Hiç resim yoksa özel bir içerik göster
+            content = Center(
+              child:
+                  isOwnProfile
+                      ? GestureDetector(
+                        onTap: () {
+                          // Fotoğraf ekleme sayfasına git
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => UploadImagePage(
+                                    userId: firebaseUser!.uid,
+                                  ),
+                            ),
+                          ).then((_) {
+                            // Sayfadan dönünce sayfayı yenile
+                            setState(() {});
+                          });
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 30,
+                            horizontal: 20,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.add_photo_alternate_outlined,
+                                color: Colors.grey,
+                                size: 32,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                "Henüz fotoğrafınız yok.\nFotoğraf eklemek için tıklayın",
+                                style: TextStyle(color: Colors.grey.shade600),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      : Text(
+                        "Kullanıcının henüz fotoğrafı bulunmuyor",
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+            );
+          } else {
+            // Resimler varsa grid view ile göster
+            content = GridView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: images.length,
+              itemBuilder: (context, index) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: _buildUserImage(images[index]),
+                );
+              },
+            );
+          }
         }
+
         return Stack(
           children: [
-            buildSectionCard(title: "Fotoğraflarım", child: content),
-            Positioned(top: 12, right: 18, child: _buildEditPhotosButton()),
+            buildSectionCard(
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Fotoğraflarım",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  if (isOwnProfile)
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.red, size: 22),
+                      tooltip: "Fotoğrafları Düzenle",
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) =>
+                                    UploadImagePage(userId: firebaseUser!.uid),
+                          ),
+                        ).then((_) {
+                          // Sayfadan dönünce sayfayı yenile
+                          setState(() {});
+                        });
+                      },
+                    ),
+                ],
+              ),
+              child: content,
+            ),
           ],
-        );
-      },
-    );
-  }
-
-  Widget _buildEditPhotosButton() {
-    final firebaseUser = _auth.currentUser;
-    if (firebaseUser == null) return SizedBox.shrink();
-    return IconButton(
-      icon: Icon(Icons.edit, color: Colors.red, size: 22),
-      tooltip: "Fotoğrafları Düzenle",
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UploadImagePage(userId: firebaseUser.uid),
-          ),
         );
       },
     );
@@ -697,35 +871,35 @@ class _ProfileDetailState extends State<ProfileDetail> {
             icon: Icons.notifications,
             title: "Bildirimler",
             subtitle: "Bildirimleri yönetin",
-            onTap: () {},
+            onTap: _showNotificationSettings,
           ),
           Divider(),
           buildSettingItem(
             icon: Icons.privacy_tip,
             title: "Gizlilik",
             subtitle: "Gizlilik ayarlarını düzenleyin",
-            onTap: () {},
+            onTap: _showPrivacySettings,
           ),
           Divider(),
           buildSettingItem(
             icon: Icons.security,
             title: "Güvenlik",
             subtitle: "Hesap güvenliği ayarları",
-            onTap: () {},
+            onTap: _showSecuritySettings,
           ),
           Divider(),
           buildSettingItem(
             icon: Icons.help,
             title: "Yardım ve Destek",
             subtitle: "SSS ve iletişim",
-            onTap: () {},
+            onTap: _showHelpAndSupport,
           ),
           Divider(),
           buildSettingItem(
             icon: Icons.logout,
             title: "Çıkış Yap",
             subtitle: "Hesabınızdan güvenli çıkış yapın",
-            onTap: () {},
+            onTap: _showLogoutConfirmation,
             isDestructive: true,
           ),
         ],
@@ -773,7 +947,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
     );
   }
 
-  Widget buildSectionCard({required String title, required Widget child}) {
+  Widget buildSectionCard({required dynamic title, required Widget child}) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -793,14 +967,16 @@ class _ProfileDetailState extends State<ProfileDetail> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
+            title is String
+                ? Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                )
+                : title,
             SizedBox(height: 8),
             child,
           ],
@@ -911,6 +1087,277 @@ class _ProfileDetailState extends State<ProfileDetail> {
           ),
         ],
       ),
+    );
+  }
+
+  // Hakkımda bilgisini güncelle
+  Future<void> _updateAboutMe(String newAboutMe) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return;
+
+      await _firestore.collection('users').doc(userId).update({
+        'aboutMe': newAboutMe,
+      });
+
+      setState(() {
+        aboutMe = newAboutMe;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Hakkımda bilgisi güncellendi")));
+    } catch (e) {
+      print("Hakkımda güncellenirken hata: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Güncelleme sırasında bir hata oluştu")),
+      );
+    }
+  }
+
+  // İlgi alanlarını güncelle
+  Future<void> _updateInterests(List<String> newInterests) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return;
+
+      await _firestore.collection('users').doc(userId).update({
+        'interests': newInterests,
+      });
+
+      setState(() {
+        interests = newInterests;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("İlgi alanları güncellendi")));
+    } catch (e) {
+      print("İlgi alanları güncellenirken hata: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Güncelleme sırasında bir hata oluştu")),
+      );
+    }
+  }
+
+  // Hakkımda düzenleme diyaloğu
+  void _showEditAboutMeDialog() {
+    final textController = TextEditingController(text: aboutMe);
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text("Hakkımda"),
+            content: TextField(
+              controller: textController,
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: "Kendinizi tanıtın...",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("İptal"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _updateAboutMe(textController.text.trim());
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text("Kaydet"),
+              ),
+            ],
+          ),
+    );
+  }
+
+  // İlgi alanları düzenleme diyaloğu
+  void _showEditInterestsDialog() {
+    // Varsayılan ilgi alanları seçenekleri
+    final allInterests = [
+      "Müzik",
+      "Spor",
+      "Seyahat",
+      "Fotoğrafçılık",
+      "Arkadaşlarla Sosyalleşmek",
+      "Doğa Yürüyüşü",
+      "Sinema",
+      "Yoga",
+      "Teknoloji",
+      "Kitap Okuma",
+      "Yemek Pişirme",
+      "Oyun",
+      "Dans",
+      "Sanat",
+      "Köpekler",
+      "Kediler",
+    ];
+
+    // Kullanıcının seçtiği ilgi alanları
+    List<String> selectedInterests = List.from(interests);
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  title: Text("İlgi Alanlarım"),
+                  content: Container(
+                    width: double.maxFinite,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "İlgi alanlarınızı seçin (en fazla 8)",
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 14,
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children:
+                              allInterests.map((interest) {
+                                final isSelected = selectedInterests.contains(
+                                  interest,
+                                );
+                                return FilterChip(
+                                  label: Text(interest),
+                                  selected: isSelected,
+                                  onSelected: (value) {
+                                    setDialogState(() {
+                                      if (value) {
+                                        if (selectedInterests.length < 8) {
+                                          selectedInterests.add(interest);
+                                        } else {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                "En fazla 8 ilgi alanı seçebilirsiniz",
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      } else {
+                                        selectedInterests.remove(interest);
+                                      }
+                                    });
+                                  },
+                                  selectedColor: Colors.red.withOpacity(0.2),
+                                  checkmarkColor: Colors.red,
+                                );
+                              }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text("İptal"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _updateInterests(selectedInterests);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text("Kaydet"),
+                    ),
+                  ],
+                ),
+          ),
+    );
+  }
+
+  // Firebase oturumunu kapatacak fonksiyon
+  Future<void> _signOut() async {
+    try {
+      await _auth.signOut();
+      // Tüm sayfaları kapatıp Login sayfasına yönlendir
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => LoginPage()),
+        (route) => false,
+      );
+    } catch (e) {
+      print("Çıkış yapılırken hata oluştu: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Çıkış yapılırken bir sorun oluştu")),
+      );
+    }
+  }
+
+  // Çıkış onay diyaloğunu göster
+  void _showLogoutConfirmation() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text("Çıkış Yap"),
+            content: Text(
+              "Hesabınızdan çıkış yapmak istediğinize emin misiniz?",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Diyaloğu kapat
+                },
+                child: Text("İptal", style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop(); // Diyaloğu kapat
+                  _signOut(); // Çıkış yap
+                },
+                child: Text("Çıkış Yap"),
+              ),
+            ],
+          ),
+    );
+  }
+
+  // Settings öğeleri için action fonksiyonları
+  void _showNotificationSettings() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Bildirim ayarları yakında aktif olacak")),
+    );
+  }
+
+  void _showPrivacySettings() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Gizlilik ayarları yakında aktif olacak")),
+    );
+  }
+
+  void _showSecuritySettings() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Güvenlik ayarları yakında aktif olacak")),
+    );
+  }
+
+  void _showHelpAndSupport() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Yardım ve destek yakında aktif olacak")),
     );
   }
 }
