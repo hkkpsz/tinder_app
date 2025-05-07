@@ -138,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                             SizedBox(height: 16),
 
                             Text(
-                              "UCanBle",
+                              "UCANBLE",
                               style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,

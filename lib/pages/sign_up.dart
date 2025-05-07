@@ -60,6 +60,7 @@ class _SignUpState extends State<SignUp> {
         _adController.text.trim(),
         int.parse(_yasController.text.trim()),
         _workplaceController.text.trim(),
+        userId,
       );
 
       // Firestore'a profil durumunu ekle

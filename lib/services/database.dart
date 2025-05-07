@@ -24,18 +24,20 @@ class DatabaseService {
     String name,
     int age,
     String workplace,
+    String firebaseUid,
   ) async {
     await connection.query(
-      "INSERT INTO users (email, password, name, age, workplace) VALUES (@email, @password, @name, @age, @workplace)",
+      "INSERT INTO users (email, password, name, age, workplace, firebase_uid) VALUES (@email, @password, @name, @age, @workplace, @firebaseUid)",
       substitutionValues: {
         "email": email,
         "password": password.hashCode, // Şifreyi hashlemeyi unutma!
         "name": name,
         "age": age,
         "workplace": workplace,
+        "firebaseUid": firebaseUid,
       },
     );
-    print("Kullanıcı başarıyla kaydedildi!");
+    print("Kullanıcı başarıyla kaydedildi! Firebase UID: $firebaseUid");
   }
 
   // Firebase UID'yi güncelleme

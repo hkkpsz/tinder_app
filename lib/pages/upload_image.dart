@@ -36,13 +36,13 @@ class _UploadImagePageState extends State<UploadImagePage> {
 
         // Yüklenen resim sayısına göre butonun aktif olup olmayacağını kontrol et
         _isContinueEnabled =
-            selectedImages.where((image) => image != null).length >= 2;
+            selectedImages.where((image) => image != null).length >= 1;
       });
     }
   }
 
   // Veritabanına kaydetme fonksiyonu
-  Future<void> _saveImageToDatabase(String userId, String imageUrl) async {
+  Future<void> _saveImageToDatabase(String firebaseUid, String imageUrl) async {
     final connection = PostgreSQLConnection(
       '10.0.2.2',
       5432,
@@ -51,14 +51,38 @@ class _UploadImagePageState extends State<UploadImagePage> {
       password: 'hktokat0660',
     );
 
-    await connection.open();
-    await connection.query(
-      'INSERT INTO image (user_id, image_url) '
-      'SELECT id, @imageUrl FROM users WHERE firebase_uid = @firebaseUid',
-      substitutionValues: {'imageUrl': imageUrl, 'firebaseUid': userId},
-    );
+    try {
+      await connection.open();
+      print("Resim kaydediliyor... Firebase UID: $firebaseUid");
 
-    await connection.close();
+      // Önce kullanıcının var olup olmadığını kontrol et
+      final checkUserResult = await connection.query(
+        'SELECT id FROM users WHERE firebase_uid = @firebaseUid',
+        substitutionValues: {'firebaseUid': firebaseUid},
+      );
+
+      if (checkUserResult.isEmpty) {
+        throw Exception(
+          'Bu Firebase UID ile eşleşen kullanıcı bulunamadı: $firebaseUid',
+        );
+      }
+
+      final postgresUserId = checkUserResult.first[0];
+      print("Kullanıcı bulundu. PostgreSQL user_id: $postgresUserId");
+
+      // Direkt user_id kullanarak resmi ekle
+      final result = await connection.execute(
+        'INSERT INTO image (user_id, image_url) VALUES (@userId, @imageUrl)',
+        substitutionValues: {'userId': postgresUserId, 'imageUrl': imageUrl},
+      );
+
+      print("Resim başarıyla kaydedildi! Etkilenen satır sayısı: $result");
+    } catch (e) {
+      print("Resim kaydedilirken hata oluştu: $e");
+      throw Exception('Resim kaydedilemedi: $e');
+    } finally {
+      await connection.close();
+    }
   }
 
   // Resimleri Cloudinary'ye yükle ve PostgreSQL'e kaydet

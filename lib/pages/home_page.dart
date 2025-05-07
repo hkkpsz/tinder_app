@@ -70,6 +70,14 @@ class _HomePageState extends State<HomePage> {
         final userName = userRow[2]; // name
         final userAge = userRow[3]; // age
         final userWorkplace = userRow[5]; // workplace
+        final firebaseUid = userRow[7]; // firebase_uid
+
+        // Eğer firebase_uid null ise, bu kullanıcıyı atla veya varsayılan resim göster
+        if (firebaseUid == null) {
+          print(
+            "Uyarı: ID:$userId kullanıcısının firebase_uid değeri null. Varsayılan resim kullanılacak.",
+          );
+        }
 
         // Kullanıcıya ait tüm resim bilgilerini çek
         final imageResults = await connection.query(
@@ -81,8 +89,7 @@ class _HomePageState extends State<HomePage> {
 
         if (imageResults.isNotEmpty) {
           for (final imageRow in imageResults) {
-            String imageUrl =
-                imageRow[0]; // image_url - sütun indeksini düzelttim
+            String imageUrl = imageRow[0]; // image_url
             if (imageUrl != null && imageUrl.isNotEmpty) {
               imagePaths.add(_getValidImageUrl(imageUrl));
             }
@@ -101,19 +108,21 @@ class _HomePageState extends State<HomePage> {
             name: userName,
             age: userAge,
             workplace: userWorkplace,
-            imagePath: imagePaths.first, // Ana resim olarak ilk resmi kullan
+            imagePath:
+                imagePaths.isNotEmpty
+                    ? imagePaths.first
+                    : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}&background=random',
             additionalImages:
-                imagePaths.skip(1).toList(), // Diğer resimleri ekle
+                imagePaths.length > 1 ? imagePaths.sublist(1) : [],
           ),
         );
       }
 
+      await connection.close();
       return fetchedUsers;
     } catch (e) {
       print("Veritabanı hatası: $e");
       throw Exception('Veritabanından kullanıcılar çekilemedi: $e');
-    } finally {
-      await connection.close();
     }
   }
 
@@ -625,7 +634,9 @@ class _HomePageState extends State<HomePage> {
               final userIndex =
                   hakkiIndex != -1
                       ? hakkiIndex
-                      : (DateTime.now().millisecond % userList.length);
+                      : (userList.isEmpty
+                          ? 0
+                          : DateTime.now().millisecond % userList.length);
               Navigator.push(
                 context,
                 MaterialPageRoute(

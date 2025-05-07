@@ -7,6 +7,7 @@ import 'pages/message_page.dart';
 import 'users.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'pages/upload_image.dart';
 
 class ProfileDetail extends StatefulWidget {
   final int userIndex;
@@ -631,30 +632,19 @@ class _ProfileDetailState extends State<ProfileDetail> {
     return FutureBuilder<List<String>>(
       future: fetchUserImages(widget.userIndex),
       builder: (context, snapshot) {
+        Widget content;
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return buildSectionCard(
-            title: "Fotoğraflarım",
-            child: Center(child: CircularProgressIndicator(color: Colors.red)),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return buildSectionCard(
-            title: "Fotoğraflarım",
-            child: Center(
-              child: Text(
-                "Fotoğraflar yüklenirken hata oluştu",
-                style: TextStyle(color: Colors.red),
-              ),
+          content = Center(child: CircularProgressIndicator(color: Colors.red));
+        } else if (snapshot.hasError) {
+          content = Center(
+            child: Text(
+              "Fotoğraflar yüklenirken hata oluştu",
+              style: TextStyle(color: Colors.red),
             ),
           );
-        }
-
-        List<String> images = snapshot.data ?? [];
-
-        return buildSectionCard(
-          title: "Fotoğraflarım",
-          child: GridView.builder(
+        } else {
+          List<String> images = snapshot.data ?? [];
+          content = GridView.builder(
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -669,6 +659,29 @@ class _ProfileDetailState extends State<ProfileDetail> {
                 child: _buildUserImage(images[index]),
               );
             },
+          );
+        }
+        return Stack(
+          children: [
+            buildSectionCard(title: "Fotoğraflarım", child: content),
+            Positioned(top: 12, right: 18, child: _buildEditPhotosButton()),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildEditPhotosButton() {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) return SizedBox.shrink();
+    return IconButton(
+      icon: Icon(Icons.edit, color: Colors.red, size: 22),
+      tooltip: "Fotoğrafları Düzenle",
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UploadImagePage(userId: firebaseUser.uid),
           ),
         );
       },

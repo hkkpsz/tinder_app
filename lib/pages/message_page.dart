@@ -365,7 +365,9 @@ class _MessagePageState extends State<MessagePage> {
               final userIndex =
                   hakkiIndex != -1
                       ? hakkiIndex
-                      : (DateTime.now().millisecond % users.length);
+                      : (users.isEmpty
+                          ? 0
+                          : DateTime.now().millisecond % users.length);
               Navigator.push(
                 context,
                 MaterialPageRoute(
