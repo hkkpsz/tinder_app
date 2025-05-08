@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:postgres/postgres.dart';
 import '../users.dart';
 import '../ikon_icons.dart';
 import '../profile_detail.dart';
 import 'home_page.dart';
 import 'match_page.dart';
 import 'message_page.dart';
+import '../repositories/user_repository.dart';
 
 class SelectionPage extends StatefulWidget {
   const SelectionPage({super.key});
@@ -18,6 +18,7 @@ class _selectionPageState extends State<SelectionPage> {
   List<User> filteredUsers = [];
   bool isLoading = true;
   String errorMessage = '';
+  final UserRepository _userRepository = UserRepository();
 
   final List<Map<String, dynamic>> _filterOptions = [
     {
@@ -110,7 +111,12 @@ class _selectionPageState extends State<SelectionPage> {
 
   Future<void> _loadUsers() async {
     try {
-      final users = await fetchUsersWithImages();
+      setState(() {
+        isLoading = true;
+        errorMessage = '';
+      });
+
+      final users = await _userRepository.getAllUsers();
       setState(() {
         filteredUsers = users;
         isLoading = false;
@@ -121,64 +127,6 @@ class _selectionPageState extends State<SelectionPage> {
         isLoading = false;
       });
       print(errorMessage);
-    }
-  }
-
-  Future<List<User>> fetchUsersWithImages() async {
-    final connection = PostgreSQLConnection(
-      '10.0.2.2', // host bilgisi
-      5432, // port
-      'postgres', // veritabanı adı
-      username: 'postgres',
-      password: 'hktokat0660',
-    );
-
-    try {
-      await connection.open();
-      print("Veritabanı bağlantısı başarılı");
-
-      // Kullanıcıları çek
-      final userResults = await connection.query('SELECT * FROM users');
-
-      List<User> fetchedUsers = [];
-
-      // Her kullanıcı için resimleri çek
-      for (final userRow in userResults) {
-        final userId = userRow[0]; // user_id
-        final userName = userRow[2]; // name
-        final userAge = userRow[3]; // age
-        final userWorkplace = userRow[5]; // workplace
-
-        // Kullanıcıya ait resim bilgilerini çek
-        final imageResults = await connection.query(
-          'SELECT * FROM image WHERE user_id = @userId ORDER BY createdat DESC LIMIT 1',
-          substitutionValues: {'userId': userId},
-        );
-
-        String imagePath =
-            'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg'; // Varsayılan Cloudinary URL'si
-
-        if (imageResults.isNotEmpty) {
-          final imageUrl = imageResults.first[1]; // image_url
-          imagePath = _getValidImageUrl(imageUrl);
-        }
-
-        fetchedUsers.add(
-          User.fromDatabase(
-            name: userName,
-            age: userAge,
-            workplace: userWorkplace,
-            imagePath: imagePath,
-          ),
-        );
-      }
-
-      return fetchedUsers;
-    } catch (e) {
-      print("Veritabanı hatası: $e");
-      throw Exception('Veritabanından kullanıcılar çekilemedi: $e');
-    } finally {
-      await connection.close();
     }
   }
 

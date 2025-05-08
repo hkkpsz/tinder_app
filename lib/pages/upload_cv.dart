@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:postgres/postgres.dart';
 import 'package:ucanble_tinder/pages/home_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ucanble_tinder/services/firebase_service.dart';
 
 class UploadCVPage extends StatefulWidget {
   final String userId; // Kullanıcı ID'sini almak için
@@ -21,6 +21,8 @@ class _UploadCVPageState extends State<UploadCVPage> {
   bool _isContinueEnabled = false; // Devam Et butonunun aktifliği
   bool _isLoading = false; // Yükleme durumu
   String? _fileName; // Dosya adı
+  final FirebaseService _firebaseService = FirebaseService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Flask API'si üzerinden CV'den isim çıkartma
   Future<String?> extractNameFromCV(File cvFile) async {
@@ -67,24 +69,19 @@ class _UploadCVPageState extends State<UploadCVPage> {
     }
   }
 
-  // Veritabanına CV yolunu kaydetme fonksiyonu
-  Future<void> _saveCvToDatabase(String userId, String cvPath) async {
-    final connection = PostgreSQLConnection(
-      '10.0.2.2', // PostgreSQL sunucu adresi
-      5432,
-      'postgres',
-      username: 'postgres',
-      password: 'hktokat0660',
-    );
+  // Firebase'e CV yolunu kaydetme fonksiyonu
+  Future<void> _saveCvToFirebase(String userId, String cvPath) async {
+    try {
+      print("CV kaydediliyor: $cvPath");
 
-    await connection.open();
-    await connection.query(
-      'INSERT INTO cvs (user_id, cv_url) '
-      'SELECT id, @cvUrl FROM users WHERE firebase_uid = @firebaseUid',
-      substitutionValues: {'cvUrl': cvPath, 'firebaseUid': userId},
-    );
+      // Firebase Firestore'da kullanıcının CV URL'sini güncelle
+      await _firebaseService.updateUserCv(userId: userId, cvUrl: cvPath);
 
-    await connection.close();
+      print("CV başarıyla Firebase'e kaydedildi!");
+    } catch (e) {
+      print("CV kaydedilirken hata: $e");
+      throw e;
+    }
   }
 
   // Devam Et butonuna basıldığında yapılacak işlem
@@ -97,25 +94,41 @@ class _UploadCVPageState extends State<UploadCVPage> {
       try {
         // Gerçek CV yolunu elde et
         String cvPath = selectedCv!.path;
+        print("Seçilen CV yolu: $cvPath");
 
-        // Veritabanına CV yolunu kaydet
-        await _saveCvToDatabase(widget.userId, cvPath);
+        // Firebase'e CV yolunu kaydet
+        await _saveCvToFirebase(widget.userId, cvPath);
+        print("CV Firebase'e kaydedildi");
 
-        // Firestore'da cvUploaded durumunu güncelle
-        await FirebaseFirestore.instance
-            .collection('userProgress')
-            .doc(widget.userId)
-            .update({'cvUploaded': true});
+        // Firestore'da kullanıcı ilerleme durumunu güncelle
+        await _firestore.collection('userProgress').doc(widget.userId).set({
+          'cvUploaded': true,
+          'profileCompleted': true,
+        }, SetOptions(merge: true));
+        print("Kullanıcı ilerleme durumu güncellendi");
 
         // Kullanıcı profilini tamamlandı olarak işaretle
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .update({'profileCompleted': true});
+        await _firestore.collection('users').doc(widget.userId).update({
+          'profileCompleted': true,
+        });
+        print("Kullanıcı profili tamamlandı olarak işaretlendi");
 
         // Flask API'den isim çıkar
-        final extractedName = await extractNameFromCV(selectedCv!);
-        print("Flask'tan alınan isim: $extractedName");
+        try {
+          final extractedName = await extractNameFromCV(selectedCv!);
+          print("Flask'tan alınan isim: $extractedName");
+
+          if (extractedName != null) {
+            // İsim başarıyla çıkarıldıysa kullanıcı adını güncelle
+            await _firestore.collection('users').doc(widget.userId).update({
+              'name': extractedName,
+              'ad': extractedName,
+            });
+            print("Kullanıcı adı CV'den çıkarılan isimle güncellendi");
+          }
+        } catch (e) {
+          print("İsim çıkarma sırasında hata, ancak işleme devam edilecek: $e");
+        }
 
         setState(() {
           _isLoading = false;
@@ -142,11 +155,30 @@ class _UploadCVPageState extends State<UploadCVPage> {
     }
   }
 
+  // Ana sayfaya git fonksiyonu
+  void _skipToHome() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => HomePage()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text("CV Yükleme"),
+        centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: _skipToHome,
+            child: Text("Atla", style: TextStyle(color: colorScheme.primary)),
+          ),
+        ],
+      ),
       body:
           _isLoading
               ? Center(

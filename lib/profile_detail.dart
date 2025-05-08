@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:postgres/postgres.dart';
 import 'ikon_icons.dart';
 import 'pages/home_page.dart';
 import 'pages/match_page.dart';
@@ -9,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'pages/upload_image.dart';
 import 'pages/login_page.dart';
+import 'repositories/user_repository.dart';
 
 class ProfileDetail extends StatefulWidget {
   final int userIndex;
@@ -27,6 +27,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
   String errorMessage = '';
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserRepository _userRepository = UserRepository();
 
   // Kullanıcı bilgileri
   String? aboutMe;
@@ -37,7 +38,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
   String _getValidImageUrl(String? url) {
     if (url == null || url.isEmpty) {
       // Boş URL durumunda varsayılan bir URL göster
-      return 'https://ui-avatars.com/api/?name=User&background=random';
+      return 'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg';
     }
 
     // Cloudinary URL'si zaten tam olarak kullanılabilir
@@ -51,7 +52,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
     }
 
     // Diğer tüm durumlarda varsayılan URL'yi kullan
-    return 'https://ui-avatars.com/api/?name=User&background=random';
+    return 'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg';
   }
 
   @override
@@ -108,12 +109,13 @@ class _ProfileDetailState extends State<ProfileDetail> {
     try {
       print("Firebase'den kullanıcı yükleniyor: $userId");
 
-      // Firebase'den kullanıcı bilgilerini al
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(userId).get();
+      // Mevcut kullanıcı kendi profilini mi görüntülüyor?
+      isCurrentUserProfile = _auth.currentUser?.uid == userId;
+      print("Mevcut kullanıcı profili mi: $isCurrentUserProfile");
 
-      if (!userDoc.exists) {
-        print("Kullanıcı ($userId) Firestore'da bulunamadı!");
+      // UserRepository kullanarak kullanıcı bilgilerini al
+      final user = await _userRepository.getUserDetails(userId);
+      if (user == null) {
         setState(() {
           errorMessage = 'Kullanıcı profili bulunamadı';
           isLoading = false;
@@ -121,62 +123,25 @@ class _ProfileDetailState extends State<ProfileDetail> {
         return;
       }
 
-      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-      print("Kullanıcı bilgileri alındı: ${userData['ad']}");
+      // Firestore'dan kullanıcı hakkında ek bilgileri al
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      final userData = userDoc.data();
 
-      // Mevcut kullanıcı kendi profilini mi görüntülüyor?
-      isCurrentUserProfile = _auth.currentUser?.uid == userId;
-      print("Mevcut kullanıcı profili mi: $isCurrentUserProfile");
+      if (userData != null) {
+        // Kullanıcı hakkında ve ilgi alanları bilgilerini al
+        aboutMe = userData['aboutMe'];
 
-      // Kullanıcı hakkında ve ilgi alanları bilgilerini al
-      aboutMe = userData['aboutMe'];
-
-      // Interests listesini çek (Firestore'da array olarak saklanıyor)
-      if (userData['interests'] != null) {
-        interests = List<String>.from(userData['interests']);
-        print("İlgi alanları: $interests");
+        // Interests listesini çek (Firestore'da array olarak saklanıyor)
+        if (userData['interests'] != null) {
+          interests = List<String>.from(userData['interests']);
+          print("İlgi alanları: $interests");
+        }
       }
 
-      // PostgreSQL'den kullanıcının resmini al
-      try {
-        final userImages = await _fetchUserImagesFromPostgres(userId);
-        print("Postgres'ten ${userImages.length} resim alındı");
-
-        // User nesnesini oluştur
-        User user = User.fromDatabase(
-          name: userData['ad'] ?? 'İsimsiz',
-          age: userData['yas'] ?? 0,
-          workplace: userData['workplace'] ?? '',
-          imagePath:
-              userImages.isNotEmpty
-                  ? userImages.first
-                  : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userData['ad'] ?? 'User')}&background=random',
-          additionalImages: userImages.length > 1 ? userImages.sublist(1) : [],
-          userId: userId, // Firebase UID'yi kullanıcı nesnesine ekle
-        );
-
-        setState(() {
-          currentUser = user;
-          isLoading = false;
-        });
-      } catch (e) {
-        print("Resim yüklenirken hata, varsayılan avatar kullanılacak: $e");
-        // Resimler yüklenemese bile kullanıcıyı göster
-        User user = User.fromDatabase(
-          name: userData['ad'] ?? 'İsimsiz',
-          age: userData['yas'] ?? 0,
-          workplace: userData['workplace'] ?? '',
-          imagePath:
-              'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userData['ad'] ?? 'User')}&background=random',
-          additionalImages: [],
-          userId: userId,
-        );
-
-        setState(() {
-          currentUser = user;
-          isLoading = false;
-        });
-      }
+      setState(() {
+        currentUser = user;
+        isLoading = false;
+      });
     } catch (e) {
       print("Kullanıcı profili yüklenirken hata: $e");
       setState(() {
@@ -186,181 +151,18 @@ class _ProfileDetailState extends State<ProfileDetail> {
     }
   }
 
-  Future<List<String>> _fetchUserImagesFromPostgres(String firebaseUid) async {
-    print("PostgreSQL'den kullanıcı resimleri çekiliyor: $firebaseUid");
-
-    final connection = PostgreSQLConnection(
-      '10.0.2.2', // host bilgisi
-      5432, // port
-      'postgres', // veritabanı adı
-      username: 'postgres',
-      password: 'hktokat0660',
-      timeoutInSeconds: 30, // Zaman aşımı süresini artır
-    );
-
-    try {
-      await connection.open();
-      print("PostgreSQL bağlantısı başarılı");
-
-      // Önce Firebase UID'ye göre PostgreSQL user_id'yi bul
-      final userIdResults = await connection.query(
-        'SELECT id FROM users WHERE firebase_uid = @firebaseUid',
-        substitutionValues: {'firebaseUid': firebaseUid},
-      );
-
-      if (userIdResults.isEmpty) {
-        print(
-          "PostgreSQL'de firebase_uid: $firebaseUid için kullanıcı bulunamadı",
-        );
-        await connection.close();
-        return ['https://ui-avatars.com/api/?name=User&background=random'];
-      }
-
-      final userId = userIdResults.first[0];
-      print("PostgreSQL user_id: $userId");
-
-      // Kullanıcıya ait tüm resimleri çek
-      final imageResults = await connection.query(
-        'SELECT image_url FROM image WHERE user_id = @userId ORDER BY createdat DESC',
-        substitutionValues: {'userId': userId},
-      );
-
-      List<String> imagePaths = [];
-
-      for (final row in imageResults) {
-        String imageUrl = row[0]; // image_url
-        if (imageUrl != null && imageUrl.isNotEmpty) {
-          imagePaths.add(_getValidImageUrl(imageUrl));
-        }
-      }
-
-      print("Bulunan resim sayısı: ${imagePaths.length}");
-
-      // Eğer hiç resim bulunamadıysa varsayılan URL'yi ekle
-      if (imagePaths.isEmpty) {
-        imagePaths.add(
-          'https://ui-avatars.com/api/?name=User&background=random',
-        );
-      }
-
-      await connection.close();
-      return imagePaths;
-    } catch (e) {
-      print("Kullanıcı resimleri çekilirken hata: $e");
-      // Hata durumunda varsayılan resim göster
-      return ['https://ui-avatars.com/api/?name=User&background=random'];
-    }
-  }
-
-  Future<List<User>> fetchUsersWithImages() async {
-    final connection = PostgreSQLConnection(
-      '10.0.2.2', // host bilgisi
-      5432, // port
-      'postgres', // veritabanı adı
-      username: 'postgres',
-      password: 'hktokat0660',
-    );
-
-    try {
-      await connection.open();
-      print("Veritabanı bağlantısı başarılı");
-
-      // Kullanıcıları çek
-      final userResults = await connection.query('SELECT * FROM users');
-
-      List<User> fetchedUsers = [];
-
-      // Her kullanıcı için resimleri çek
-      for (final userRow in userResults) {
-        final userId = userRow[0]; // user_id
-        final userName = userRow[2]; // name
-        final userAge = userRow[3]; // age
-        final userWorkplace = userRow[5]; // workplace
-
-        // Kullanıcıya ait resim bilgilerini çek
-        final imageResults = await connection.query(
-          'SELECT image_url FROM image WHERE user_id = @userId ORDER BY createdat DESC LIMIT 1',
-          substitutionValues: {'userId': userId},
-        );
-
-        // Varsayılan avatar URL'si
-        String imagePath =
-            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}&background=random';
-
-        if (imageResults.isNotEmpty) {
-          // Resim URL'sini al
-          String imageUrl = imageResults.first[0]; // image_url
-          if (imageUrl != null && imageUrl.isNotEmpty) {
-            imagePath = _getValidImageUrl(imageUrl);
-          }
-        }
-
-        fetchedUsers.add(
-          User.fromDatabase(
-            name: userName,
-            age: userAge,
-            workplace: userWorkplace,
-            imagePath: imagePath,
-          ),
-        );
-      }
-
-      return fetchedUsers;
-    } catch (e) {
-      print("Veritabanı hatası: $e");
-      throw Exception('Veritabanından kullanıcılar çekilemedi: $e');
-    } finally {
-      await connection.close();
-    }
-  }
-
-  // Kullanıcının tüm resimlerini çek
-  Future<List<String>> fetchUserImages(int userId) async {
-    final connection = PostgreSQLConnection(
-      '10.0.2.2', // host bilgisi
-      5432, // port
-      'postgres', // veritabanı adı
-      username: 'postgres',
-      password: 'hktokat0660',
-    );
-
-    try {
-      await connection.open();
-
-      // Kullanıcıya ait tüm resimleri çek
-      final imageResults = await connection.query(
-        'SELECT image_url FROM image WHERE user_id = @userId ORDER BY createdat DESC',
-        substitutionValues: {'userId': userId},
-      );
-
-      List<String> imagePaths = [];
-
-      for (final row in imageResults) {
-        String imageUrl = row[0]; // image_url
-        if (imageUrl != null && imageUrl.isNotEmpty) {
-          imagePaths.add(_getValidImageUrl(imageUrl));
-        }
-      }
-
-      // Eğer hiç resim bulunamadıysa varsayılan URL'yi ekle
-      if (imagePaths.isEmpty) {
-        imagePaths.add(
-          'https://ui-avatars.com/api/?name=User&background=random',
-        );
-      }
-
-      return imagePaths;
-    } catch (e) {
-      print("Kullanıcı resimleri çekilirken hata: $e");
-      return ['https://ui-avatars.com/api/?name=User&background=random'];
-    } finally {
-      await connection.close();
-    }
-  }
-
   // Image widget oluşturan yardımcı metod
   Widget _buildUserImage(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      print("Profil resmi boş, varsayılan resim gösteriliyor");
+      return Container(
+        color: Colors.grey.shade200,
+        child: Center(child: Icon(Icons.person, color: Colors.grey, size: 60)),
+      );
+    }
+
     final url = _getValidImageUrl(imageUrl);
+    print("Profil resmi yükleniyor: $url");
 
     return Image.network(
       url,
@@ -379,10 +181,24 @@ class _ProfileDetailState extends State<ProfileDetail> {
         );
       },
       errorBuilder: (context, error, stackTrace) {
-        // Sessizce hata loglamak yerine fallback avatar göster
+        print("Profil resmi yüklenirken hata: $error (URL: $url)");
+        // Hata durumunda varsayılan avatar göster
         return Container(
           color: Colors.grey.shade200,
-          child: Icon(Icons.person, color: Colors.grey, size: 50),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image, color: Colors.grey, size: 50),
+                SizedBox(height: 8),
+                Text(
+                  "Resim Yüklenemedi",
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -552,19 +368,20 @@ class _ProfileDetailState extends State<ProfileDetail> {
                 child: ClipOval(child: _buildUserImage(currentUser?.imagePath)),
               ),
             ),
-            // Düzenleme butonu
-            Positioned(
-              top: 16,
-              right: 16,
-              child: Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
-                  shape: BoxShape.circle,
+            // Düzenleme butonu - sadece kendi profilimizde göster
+            if (isCurrentUserProfile)
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.edit, color: Colors.black87, size: 20),
                 ),
-                child: Icon(Icons.edit, color: Colors.black87, size: 20),
               ),
-            ),
           ],
         ),
       ),
@@ -618,21 +435,6 @@ class _ProfileDetailState extends State<ProfileDetail> {
                 ],
               ),
             ),
-            ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Text(
-                "Profili Düzenle",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
           ],
         ),
       ],
@@ -645,11 +447,13 @@ class _ProfileDetailState extends State<ProfileDetail> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text("Hakkımda"),
-          IconButton(
-            icon: Icon(Icons.edit, color: Colors.red, size: 20),
-            onPressed: _showEditAboutMeDialog,
-            tooltip: "Hakkımda bilgisini düzenle",
-          ),
+          // Düzenleme butonu - sadece kendi profilimizde göster
+          if (isCurrentUserProfile)
+            IconButton(
+              icon: Icon(Icons.edit, color: Colors.red, size: 20),
+              onPressed: _showEditAboutMeDialog,
+              tooltip: "Hakkımda bilgisini düzenle",
+            ),
         ],
       ),
       child: Column(
@@ -672,11 +476,13 @@ class _ProfileDetailState extends State<ProfileDetail> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text("İlgi Alanlarım"),
-          IconButton(
-            icon: Icon(Icons.edit, color: Colors.red, size: 20),
-            onPressed: _showEditInterestsDialog,
-            tooltip: "İlgi alanlarını düzenle",
-          ),
+          // Düzenleme butonu - sadece kendi profilimizde göster
+          if (isCurrentUserProfile)
+            IconButton(
+              icon: Icon(Icons.edit, color: Colors.red, size: 20),
+              onPressed: _showEditInterestsDialog,
+              tooltip: "İlgi alanlarını düzenle",
+            ),
         ],
       ),
       child: Wrap(
@@ -722,108 +528,27 @@ class _ProfileDetailState extends State<ProfileDetail> {
   Widget buildPhotosSection() {
     // Kullanıcının kendi profili ise ve aktif bir Firebase kullanıcısı varsa
     final firebaseUser = _auth.currentUser;
-    final bool isOwnProfile = isCurrentUserProfile && firebaseUser != null;
+    final String userId = widget.userId ?? firebaseUser?.uid ?? '';
 
-    return FutureBuilder<List<String>>(
-      future:
-          isOwnProfile
-              ? _fetchUserImagesFromPostgres(
-                firebaseUser!.uid,
-              ) // Kendi UID'sine göre resimleri çek
-              : fetchUserImages(
-                widget.userIndex,
-              ), // Başka kullanıcının resimleri için userIndex kullan
-      builder: (context, snapshot) {
-        Widget content;
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          content = Center(child: CircularProgressIndicator(color: Colors.red));
-        } else if (snapshot.hasError) {
-          content = Center(
-            child: Text(
-              "Fotoğraflar yüklenirken hata oluştu",
-              style: TextStyle(color: Colors.red),
-            ),
-          );
-        } else {
-          List<String> images = snapshot.data ?? [];
+    print(
+      "buildPhotosSection çağrıldı: userId=$userId, isCurrentUserProfile=$isCurrentUserProfile",
+    );
 
-          if (images.isEmpty) {
-            // Hiç resim yoksa özel bir içerik göster
-            content = Center(
-              child:
-                  isOwnProfile
-                      ? GestureDetector(
-                        onTap: () {
-                          // Fotoğraf ekleme sayfasına git
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (context) => UploadImagePage(
-                                    userId: firebaseUser!.uid,
-                                  ),
-                            ),
-                          ).then((_) {
-                            // Sayfadan dönünce sayfayı yenile
-                            setState(() {});
-                          });
-                        },
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            vertical: 30,
-                            horizontal: 20,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.add_photo_alternate_outlined,
-                                color: Colors.grey,
-                                size: 32,
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                "Henüz fotoğrafınız yok.\nFotoğraf eklemek için tıklayın",
-                                style: TextStyle(color: Colors.grey.shade600),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                      : Text(
-                        "Kullanıcının henüz fotoğrafı bulunmuyor",
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-            );
-          } else {
-            // Resimler varsa grid view ile göster
-            content = GridView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemCount: images.length,
-              itemBuilder: (context, index) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: _buildUserImage(images[index]),
-                );
-              },
-            );
-          }
-        }
+    // Önce currentUser resimleri varsa onları göster
+    if (currentUser != null && currentUser!.imagePath != null) {
+      List<String> images = [];
 
+      // Profil fotoğrafı ve ek fotoğrafları birleştir
+      if (currentUser!.imagePath != null) {
+        images.add(currentUser!.imagePath!);
+      }
+
+      images.addAll(currentUser!.additionalImages);
+
+      print("Mevcut kullanıcı nesnesinden ${images.length} resim bulundu");
+
+      // Resimler varsa grid view ile göster
+      if (images.isNotEmpty) {
         return Stack(
           children: [
             buildSectionCard(
@@ -834,7 +559,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
                     "Fotoğraflarım",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  if (isOwnProfile)
+                  if (isCurrentUserProfile)
                     IconButton(
                       icon: Icon(Icons.edit, color: Colors.red, size: 22),
                       tooltip: "Fotoğrafları Düzenle",
@@ -854,15 +579,174 @@ class _ProfileDetailState extends State<ProfileDetail> {
                     ),
                 ],
               ),
-              child: content,
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: images.length,
+                itemBuilder: (context, index) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: _buildUserImage(images[index]),
+                  );
+                },
+              ),
             ),
           ],
+        );
+      }
+    }
+
+    // CurrentUser resimleri yoksa, Firebase'den resimleri çek
+    return FutureBuilder<List<String>>(
+      future:
+          userId.isNotEmpty
+              ? _userRepository.getUserImages(userId)
+              : Future.value([]),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return buildSectionCard(
+            title: "Fotoğraflarım",
+            child: Center(child: CircularProgressIndicator(color: Colors.red)),
+          );
+        }
+
+        if (snapshot.hasError) {
+          print("Resim yükleme hatası: ${snapshot.error}");
+          return buildSectionCard(
+            title: "Fotoğraflarım",
+            child: Center(
+              child: Text(
+                "Fotoğraflar yüklenirken hata oluştu",
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          );
+        }
+
+        List<String> images = snapshot.data ?? [];
+        print("Firebase'den ${images.length} resim yüklendi");
+
+        Widget content;
+        if (images.isEmpty) {
+          // Hiç resim yoksa özel bir içerik göster
+          content = Center(
+            child:
+                isCurrentUserProfile
+                    ? GestureDetector(
+                      onTap: () {
+                        // Fotoğraf ekleme sayfasına git
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) =>
+                                    UploadImagePage(userId: firebaseUser!.uid),
+                          ),
+                        ).then((_) {
+                          // Sayfadan dönünce sayfayı yenile
+                          setState(() {});
+                        });
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 30,
+                          horizontal: 20,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.add_photo_alternate_outlined,
+                              color: Colors.grey,
+                              size: 32,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              "Henüz fotoğrafınız yok.\nFotoğraf eklemek için tıklayın",
+                              style: TextStyle(color: Colors.grey.shade600),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                    : Text(
+                      "Kullanıcının henüz fotoğrafı bulunmuyor",
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+          );
+        } else {
+          // Resimler varsa grid view ile göster
+          content = GridView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _buildUserImage(images[index]),
+              );
+            },
+          );
+        }
+
+        return buildSectionCard(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Fotoğraflarım",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              if (isCurrentUserProfile)
+                IconButton(
+                  icon: Icon(Icons.edit, color: Colors.red, size: 22),
+                  tooltip: "Fotoğrafları Düzenle",
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) =>
+                                UploadImagePage(userId: firebaseUser!.uid),
+                      ),
+                    ).then((_) {
+                      // Sayfadan dönünce sayfayı yenile
+                      setState(() {});
+                    });
+                  },
+                ),
+            ],
+          ),
+          child: content,
         );
       },
     );
   }
 
   Widget buildSettingsSection() {
+    // Sadece kullanıcının kendi profilinde ayarlar bölümünü göster
+    if (!isCurrentUserProfile) {
+      return SizedBox.shrink(); // Başkasının profilinde ayarlar bölümünü gizle
+    }
+
     return buildSectionCard(
       title: "Ayarlar",
       child: Column(

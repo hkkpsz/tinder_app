@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:postgres/postgres.dart';
 import 'package:ucanble_tinder/pages/home_page.dart';
 import 'package:ucanble_tinder/pages/upload_cv.dart';
 import 'package:ucanble_tinder/services/api_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ucanble_tinder/services/firebase_service.dart';
 
 class UploadImagePage extends StatefulWidget {
   final String userId; // Kullanıcı ID'sini almak için
@@ -22,6 +22,36 @@ class _UploadImagePageState extends State<UploadImagePage> {
   bool _hasError = false; // Hata durumu kontrolü
   bool _isContinueEnabled = false; // Devam Et butonunun aktifliği
   bool _isLoading = false; // Yükleme durumu
+  final FirebaseService _firebaseService = FirebaseService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserProfile();
+  }
+
+  // Kullanıcı profilini kontrol et
+  Future<void> _checkUserProfile() async {
+    try {
+      final userExists = await _firebaseService.checkUserExists(widget.userId);
+      if (!userExists) {
+        // Kullanıcı Firestore'da yoksa, varsayılan bir profil oluştur
+        await _firebaseService.saveUserData(
+          userId: widget.userId,
+          email: 'kullanici@example.com', // Geçici email
+          name: 'Yeni Kullanıcı',
+          age: 25,
+          workplace: 'Belirtilmemiş',
+        );
+        print("Yeni kullanıcı profili oluşturuldu: ${widget.userId}");
+      } else {
+        print("Kullanıcı profili zaten var: ${widget.userId}");
+      }
+    } catch (e) {
+      print("Kullanıcı profili kontrol edilirken hata: $e");
+    }
+  }
 
   // Resim seçme fonksiyonu
   Future<void> _pickImage(int index) async {
@@ -41,54 +71,12 @@ class _UploadImagePageState extends State<UploadImagePage> {
     }
   }
 
-  // Veritabanına kaydetme fonksiyonu
-  Future<void> _saveImageToDatabase(String firebaseUid, String imageUrl) async {
-    final connection = PostgreSQLConnection(
-      '10.0.2.2',
-      5432,
-      'postgres',
-      username: 'postgres',
-      password: 'hktokat0660',
-    );
-
-    try {
-      await connection.open();
-      print("Resim kaydediliyor... Firebase UID: $firebaseUid");
-
-      // Önce kullanıcının var olup olmadığını kontrol et
-      final checkUserResult = await connection.query(
-        'SELECT id FROM users WHERE firebase_uid = @firebaseUid',
-        substitutionValues: {'firebaseUid': firebaseUid},
-      );
-
-      if (checkUserResult.isEmpty) {
-        throw Exception(
-          'Bu Firebase UID ile eşleşen kullanıcı bulunamadı: $firebaseUid',
-        );
-      }
-
-      final postgresUserId = checkUserResult.first[0];
-      print("Kullanıcı bulundu. PostgreSQL user_id: $postgresUserId");
-
-      // Direkt user_id kullanarak resmi ekle
-      final result = await connection.execute(
-        'INSERT INTO image (user_id, image_url) VALUES (@userId, @imageUrl)',
-        substitutionValues: {'userId': postgresUserId, 'imageUrl': imageUrl},
-      );
-
-      print("Resim başarıyla kaydedildi! Etkilenen satır sayısı: $result");
-    } catch (e) {
-      print("Resim kaydedilirken hata oluştu: $e");
-      throw Exception('Resim kaydedilemedi: $e');
-    } finally {
-      await connection.close();
-    }
-  }
-
-  // Resimleri Cloudinary'ye yükle ve PostgreSQL'e kaydet
+  // Resimleri Cloudinary'ye yükle ve Firebase'e kaydet
   Future<List<String>> _uploadImagesToDatabase() async {
     List<String> imageUrls = [];
     try {
+      print("Resimler yükleniyor...");
+
       // Seçilen resimleri listeye ekle
       List<File> filesToUpload = [];
       for (var image in selectedImages) {
@@ -103,16 +91,22 @@ class _UploadImagePageState extends State<UploadImagePage> {
         widget.userId,
       );
 
-      // Yüklenen her resmi veritabanına kaydet
-      for (String imageUrl in imageUrls) {
-        await _saveImageToDatabase(widget.userId, imageUrl);
-      }
+      print("Cloudinary'ye ${imageUrls.length} resim yüklendi");
+
+      // Firebase Firestore'da kullanıcının resim URL'lerini güncelle
+      await _firebaseService.updateUserImages(
+        userId: widget.userId,
+        imageUrls: imageUrls,
+      );
+
+      print("Firebase'de kullanıcı resimleri güncellendi");
 
       // Firestore'da imageUploaded durumunu güncelle
-      await FirebaseFirestore.instance
-          .collection('userProgress')
-          .doc(widget.userId)
-          .update({'imageUploaded': true});
+      await _firestore.collection('userProgress').doc(widget.userId).set({
+        'imageUploaded': true,
+      }, SetOptions(merge: true));
+
+      print("Kullanıcı ilerleme durumu güncellendi");
 
       return imageUrls;
     } catch (e) {
@@ -132,7 +126,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
       });
 
       try {
-        // PostgreSQL'e resimleri yükle
+        // Resimleri yükle ve Firebase'e kaydet
         await _uploadImagesToDatabase();
 
         setState(() {
@@ -159,6 +153,14 @@ class _UploadImagePageState extends State<UploadImagePage> {
         );
       }
     }
+  }
+
+  // Ana sayfaya gitme
+  void _skipToHome() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => HomePage()),
+    );
   }
 
   // Bottom Sheet açma fonksiyonu
@@ -256,6 +258,16 @@ class _UploadImagePageState extends State<UploadImagePage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
+      appBar: AppBar(
+        title: Text("Profil Fotoğrafları"),
+        centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: _skipToHome,
+            child: Text("Atla", style: TextStyle(color: colorScheme.primary)),
+          ),
+        ],
+      ),
       body:
           _isLoading
               ? Center(

@@ -1,33 +1,37 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ucanble_tinder/services/firebase_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseService _firebaseService = FirebaseService();
 
   // Kullanıcı kayıt olma fonksiyonu
-  Future<User?> signUpWithEmail(String email, String password, String ad, int yas, String workplace) async {
+  Future<User?> signUpWithEmail(
+    String email,
+    String password,
+    String ad,
+    int yas,
+    String workplace,
+  ) async {
     try {
       if (!isValidEmail(email)) {
         throw "Geçersiz e-posta formatı! Lütfen doğru bir e-posta girin.";
       }
 
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-      // Firestore'a kullanıcı verisini kaydet
-      await _firestore.collection('users').doc(userCredential.user?.uid).set({
-        'email': email,
-        'ad': ad,
-        'yas': yas,
-        'createdAt': Timestamp.now(),
-        'workplace' : workplace,
-      }).catchError((e) {
-        print("Firestore Kaydetme Hatası: $e");
-        return null;
-      });
+      if (userCredential.user != null) {
+        // Firebase Firestore'a kullanıcı verisini kaydet
+        await _firebaseService.saveUserData(
+          userId: userCredential.user!.uid,
+          email: email,
+          name: ad,
+          age: yas,
+          workplace: workplace,
+        );
+      }
 
       return userCredential.user; // Başarılı olursa kullanıcıyı döndür
     } catch (e) {
@@ -46,15 +50,14 @@ class AuthService {
 
       User? user = userCredential.user;
       if (user != null) {
-        // Kullanıcı başarılı giriş yaptı, uid'yi alabiliriz
+        // Kullanıcı başarılı giriş yaptı
         String userId = user.uid;
         print("Giriş yapan kullanıcı ID: $userId");
 
-        // Firestore'dan kullanıcının verilerini almak da mümkün
-        DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
-        if (userDoc.exists) {
-          // Kullanıcı verilerini kullanabilirsiniz
-          var userData = userDoc.data();
+        // Firebase Firestore'dan kullanıcının verilerini almak mümkün
+        final userData = await _firebaseService.getUserData(userId);
+        if (userData != null) {
+          print("Kullanıcı verileri alındı: ${userData['name']}");
         }
 
         return user; // Kullanıcıyı döndürüyoruz
@@ -68,9 +71,21 @@ class AuthService {
     }
   }
 
+  // Mevcut giriş yapmış kullanıcıyı döndürme
+  User? getCurrentUser() {
+    return _auth.currentUser;
+  }
+
+  // Kullanıcı oturumunu kapatma
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
+
   // E-posta formatını kontrol eden fonksiyon
   bool isValidEmail(String email) {
-    final emailRegex = RegExp(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+');
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+',
+    );
     return emailRegex.hasMatch(email);
   }
 }

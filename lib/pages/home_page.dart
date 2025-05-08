@@ -3,13 +3,16 @@ import 'package:card_swiper/card_swiper.dart';
 import 'package:scrumlab_flutter_tindercard/scrumlab_flutter_tindercard.dart';
 import 'package:ucanble_tinder/pages/match_page.dart';
 import 'package:ucanble_tinder/pages/message_page.dart';
+import 'package:ucanble_tinder/pages/chat_detail_page.dart';
 import 'package:ucanble_tinder/profile_detail.dart';
 import 'package:ucanble_tinder/pages/selection_page.dart';
+import 'package:ucanble_tinder/pages/upload_image.dart'; // Profil resmi yükleme sayfası
 import '../users.dart';
 import 'package:ucanble_tinder/ikon_icons.dart';
-import 'package:postgres/postgres.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ucanble_tinder/repositories/user_repository.dart';
+import 'package:ucanble_tinder/services/firebase_service.dart'; // Firebase servisi
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,26 +27,184 @@ class _HomePageState extends State<HomePage> {
   String errorMessage = '';
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserRepository _userRepository = UserRepository();
+  final FirebaseService _firebaseService = FirebaseService();
+
+  // Okunmamış mesaj sayısı
+  int _unreadMessagesCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadUsers();
+    _checkCurrentUser();
+  }
+
+  // Kullanıcı oturumu kontrolü
+  Future<void> _checkCurrentUser() async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        setState(() {
+          errorMessage = 'Oturum açmış kullanıcı bulunamadı!';
+          isLoading = false;
+        });
+        return;
+      }
+
+      print("Kullanıcı oturumu açık: ${currentUser.uid}");
+
+      // Kullanıcının Firestore'da profili var mı kontrol et
+      bool userExists = await _firebaseService.checkUserExists(currentUser.uid);
+
+      if (!userExists) {
+        print(
+          "Kullanıcı Firestore'da bulunamadı, profil tamamlama yönlendirilecek",
+        );
+        // Kullanıcı profili oluşturulmamış, resim yükleme sayfasına yönlendir
+        _showCompleteProfileDialog();
+        return;
+      }
+
+      // Okunmamış mesaj sayısını kontrol et
+      _loadUnreadMessagesCount();
+
+      // Kullanıcı profili varsa, kullanıcıları yükle
+      _loadUsers();
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Kullanıcı oturumu kontrol edilirken hata: $e';
+        isLoading = false;
+      });
+      print(errorMessage);
+    }
+  }
+
+  // Profil tamamlama dialog'u
+  void _showCompleteProfileDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Text("Profil Oluştur"),
+            content: Text(
+              "Uygulamayı kullanmak için profilinizi tamamlamanız gerekiyor.",
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  // Profil resmini yükleme sayfasına yönlendir
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) =>
+                              UploadImagePage(userId: _auth.currentUser!.uid),
+                    ),
+                  ).then((_) {
+                    // Sayfadan dönünce kullanıcıları yükle
+                    _loadUsers();
+                  });
+                },
+                child: Text("Profil Oluştur"),
+              ),
+            ],
+          ),
+    );
   }
 
   Future<void> _loadUsers() async {
     try {
-      final users = await fetchUsersWithImages();
       setState(() {
-        userList = users;
+        isLoading = true;
+        errorMessage = '';
+      });
+
+      // Mevcut kullanıcıyı al
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        setState(() {
+          errorMessage = 'Oturum açmış kullanıcı bulunamadı';
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Önce kullanıcının daha önce etkileşimde bulunduğu kullanıcı IDlerini al
+      final actionSnapshot =
+          await _firestore
+              .collection('userActions')
+              .where('userId', isEqualTo: currentUser.uid)
+              .get();
+
+      // Etkileşimde bulunulan kullanıcı IDlerini bir kümeye ekle
+      Set<String> interactedUserIds = {};
+      for (var doc in actionSnapshot.docs) {
+        String? targetUserId = doc.data()['targetUserId'] as String?;
+        if (targetUserId != null) {
+          interactedUserIds.add(targetUserId);
+        }
+      }
+
+      print(
+        "Daha önce etkileşimde bulunulan kullanıcı sayısı: ${interactedUserIds.length}",
+      );
+
+      // Tüm kullanıcıları getir
+      final users = await _userRepository.getAllUsers();
+
+      // Mevcut kullanıcıyı ve daha önce etkileşimde bulunulan kullanıcıları filtrele
+      List<User> filteredUsers =
+          users.where((user) {
+            // Kendi profilini gösterme
+            if (user.userId == currentUser.uid) return false;
+
+            // Daha önce etkileşimde bulunulan kullanıcıları gösterme
+            if (interactedUserIds.contains(user.userId)) return false;
+
+            return true;
+          }).toList();
+
+      setState(() {
+        userList = filteredUsers;
         isLoading = false;
       });
+
+      print(
+        "Toplam kullanıcı sayısı: ${users.length}, Filtrelenmiş kullanıcı sayısı: ${filteredUsers.length}",
+      );
+
+      // Kullanıcı listesi boşsa kullanıcıya bilgi ver
+      if (filteredUsers.isEmpty) {
+        print("Gösterilebilecek yeni kullanıcı bulunamadı.");
+      }
     } catch (e) {
       setState(() {
         errorMessage = 'Kullanıcılar yüklenirken hata oluştu: $e';
         isLoading = false;
       });
       print(errorMessage);
+    }
+  }
+
+  // Okunmamış mesaj sayısını yükle
+  Future<void> _loadUnreadMessagesCount() async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      int count = await _firebaseService.getUnreadMessagesCount(
+        currentUser.uid,
+      );
+
+      setState(() {
+        _unreadMessagesCount = count;
+      });
+
+      print("Okunmamış mesaj sayısı: $_unreadMessagesCount");
+    } catch (e) {
+      print("Okunmamış mesaj sayısı yüklenirken hata: $e");
     }
   }
 
@@ -71,93 +232,182 @@ class _HomePageState extends State<HomePage> {
       print(
         'Kullanıcı aksiyonu başarıyla kaydedildi: $actionType - ${targetUser.name}',
       );
+
+      // Eğer aksiyon bir like veya superlike ise, eşleşme kontrolü yap
+      if (actionType == 'like' || actionType == 'superlike') {
+        await _checkForMatch(targetUser.userId!);
+      }
     } catch (e) {
       print('Kullanıcı aksiyonu kaydedilirken hata oluştu: $e');
     }
   }
 
-  Future<List<User>> fetchUsersWithImages() async {
-    final connection = PostgreSQLConnection(
-      '10.0.2.2', // Android emülatörü için host bilgisi
-      5432, // port
-      'postgres', // veritabanı adı
-      username: 'postgres',
-      password: 'hktokat0660',
-      timeoutInSeconds: 30, // Zaman aşımı süresini artır
-      timeZone: 'UTC', // Zaman dilimini belirt
-      useSSL: false, // SSL kullanımını kapat
-    );
-
+  // Eşleşme kontrolü
+  Future<void> _checkForMatch(String targetUserId) async {
     try {
-      await connection.open();
-      print("PostgreSQL bağlantısı başarılı");
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
 
-      // Kullanıcıları çek
-      final userResults = await connection.query('SELECT * FROM users');
+      // Hedef kullanıcının da mevcut kullanıcıyı beğenip beğenmediğini kontrol et
+      final query =
+          await _firestore
+              .collection('userActions')
+              .where('userId', isEqualTo: targetUserId)
+              .where('targetUserId', isEqualTo: currentUser.uid)
+              .where('actionType', whereIn: ['like', 'superlike'])
+              .get();
 
-      List<User> fetchedUsers = [];
+      if (query.docs.isNotEmpty) {
+        // Eşleşme oluştu!
+        final matchId = await _createMatch(currentUser.uid, targetUserId);
 
-      // Her kullanıcı için resimleri çek
-      for (final userRow in userResults) {
-        final userId = userRow[0]; // user_id
-        final userName = userRow[2]; // name
-        final userAge = userRow[3]; // age
-        final userWorkplace = userRow[5]; // workplace
-        final firebaseUid = userRow[7]; // firebase_uid
+        // Eşleşme bildirimini göster
+        showDialog(
+          context: context,
+          builder:
+              (context) => Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Container(
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.red.shade300, Colors.red.shade600],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.favorite, color: Colors.white, size: 80),
+                      SizedBox(height: 20),
+                      Text(
+                        "Yeni bir eşleşme buldun!",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        "Şimdi mesajlaşmaya başlayabilirsin.",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                      SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.red,
+                            ),
+                            child: Text("Kapat"),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              Navigator.of(context).pop();
 
-        // Eğer firebase_uid null ise, bu kullanıcıyı atla veya varsayılan resim göster
-        if (firebaseUid == null) {
-          print(
-            "Uyarı: ID:$userId kullanıcısının firebase_uid değeri null. Varsayılan resim kullanılacak.",
-          );
-        }
+                              // Eşleşen kullanıcının bilgilerini al
+                              Map<String, dynamic>? userData =
+                                  await _firebaseService.getUserData(
+                                    targetUserId,
+                                  );
 
-        // Kullanıcıya ait tüm resim bilgilerini çek
-        final imageResults = await connection.query(
-          'SELECT image_url FROM image WHERE user_id = @userId ORDER BY createdat DESC',
-          substitutionValues: {'userId': userId},
-        );
-
-        List<String> imagePaths = [];
-
-        if (imageResults.isNotEmpty) {
-          for (final imageRow in imageResults) {
-            String imageUrl = imageRow[0]; // image_url
-            if (imageUrl != null && imageUrl.isNotEmpty) {
-              imagePaths.add(_getValidImageUrl(imageUrl));
-            }
-          }
-        }
-
-        // Eğer hiç resim yoksa varsayılan avatar URL'sini kullan
-        if (imagePaths.isEmpty) {
-          imagePaths.add(
-            'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}&background=random',
-          );
-        }
-
-        fetchedUsers.add(
-          User.fromDatabase(
-            name: userName,
-            age: userAge,
-            workplace: userWorkplace,
-            imagePath:
-                imagePaths.isNotEmpty
-                    ? imagePaths.first
-                    : 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}&background=random',
-            additionalImages:
-                imagePaths.length > 1 ? imagePaths.sublist(1) : [],
-            userId: firebaseUid != null ? firebaseUid : userId.toString(),
-          ),
+                              if (userData != null) {
+                                // Mesajlaşma sayfasına git
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => ChatDetailPage(
+                                          matchId: matchId,
+                                          userId: targetUserId,
+                                          userName:
+                                              "${userData['name'] ?? 'İsimsiz'}, ${userData['age'] ?? '?'}",
+                                          userImage:
+                                              userData['images'] != null &&
+                                                      userData['images']
+                                                          .isNotEmpty
+                                                  ? userData['images'][0]
+                                                  : null,
+                                        ),
+                                  ),
+                                );
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MessagePage(),
+                                  ),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.red,
+                            ),
+                            child: Text("Mesaj Gönder"),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
         );
       }
-
-      await connection.close();
-      return fetchedUsers;
     } catch (e) {
-      print("Veritabanı hatası: $e");
-      throw Exception('Veritabanından kullanıcılar çekilemedi: $e');
+      print('Eşleşme kontrolü yapılırken hata oluştu: $e');
     }
+  }
+
+  // Eşleşmeleri Firestore'a kaydet
+  Future<String> _createMatch(String userId1, String userId2) async {
+    try {
+      // Match koleksiyonuna yeni bir eşleşme ekle
+      final docRef = await _firestore.collection('matches').add({
+        'user1Id': userId1,
+        'user2Id': userId2,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'lastMessage': '',
+      });
+
+      print('Yeni eşleşme oluşturuldu: $userId1 - $userId2');
+      return docRef.id;
+    } catch (e) {
+      print('Eşleşme oluşturulurken hata: $e');
+      return '';
+    }
+  }
+
+  // Geçerli bir image URL oluşturmak için yardımcı metod
+  String _getValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      // Boş URL durumunda varsayılan bir Cloudinary URL göster
+      return 'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg';
+    }
+
+    // Cloudinary URL'si zaten tam olarak kullanılabilir
+    if (url.contains('cloudinary.com')) {
+      return url;
+    }
+
+    // Eğer URL zaten http:// veya https:// ile başlıyorsa, kullan
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    // Diğer tüm durumlarda varsayılan Cloudinary URL'si kullan
+    return 'https://res.cloudinary.com/dkkp7qiwb/image/upload/v1746467909/ucanble_tinder_images/osxku0wkujc3hwiqgj7z.jpg';
   }
 
   final CardController _cardController = CardController();
@@ -276,14 +526,42 @@ class _HomePageState extends State<HomePage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.person_off, color: Colors.grey, size: 60),
+                          Icon(
+                            Icons.people_alt_outlined,
+                            color: Colors.grey,
+                            size: 60,
+                          ),
                           SizedBox(height: 16),
                           Text(
-                            "Kullanıcı bulunamadı",
+                            "Gösterilecek yeni kullanıcı kalmadı",
                             style: TextStyle(
                               color: Colors.grey[700],
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            "Tüm kullanıcılarla etkileşimde bulundunuz.",
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: () => _showClearHistoryDialog(),
+                            icon: Icon(Icons.refresh),
+                            label: Text("Geçmişi Temizle"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
                             ),
                           ),
                         ],
@@ -355,6 +633,9 @@ class _HomePageState extends State<HomePage> {
 
   Widget buildCard(BuildContext context, int index) {
     final user = userList[index];
+    print(
+      "Kart oluşturuluyor - index: $index, kullanıcı: ${user.name}, imagePath: ${user.imagePath}",
+    );
 
     // Super Like göstergesinin görünürlüğü
     final showSuperLike = _currentAlignment.y < -0.5;
@@ -380,7 +661,35 @@ class _HomePageState extends State<HomePage> {
           child: Stack(
             children: [
               // Ana resim
-              Positioned.fill(child: _buildUserImage(user.imagePath)),
+              Positioned.fill(
+                child:
+                    user.imagePath != null && user.imagePath!.isNotEmpty
+                        ? _buildUserImage(user.imagePath!)
+                        : Container(
+                          color: Colors.grey.shade300,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.person,
+                                  size: 80,
+                                  color: Colors.grey.shade500,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  "Fotoğraf Bulunamadı",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+              ),
               // Gradient overlay
               Positioned.fill(
                 child: Container(
@@ -480,25 +789,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Geçerli bir image URL oluşturmak için yardımcı metod
-  String _getValidImageUrl(String? url) {
-    if (url == null || url.isEmpty) {
-      // Boş URL durumunda varsayılan bir avatar URL'si göster
-      return 'https://ui-avatars.com/api/?name=User&background=random';
-    }
-
-    // Eğer URL zaten http:// veya https:// ile başlıyorsa, kullan
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-
-    // Diğer tüm durumlarda varsayılan avatar URL'si kullan
-    return 'https://ui-avatars.com/api/?name=User&background=random';
-  }
-
   // Resim widget'ı oluşturan yardımcı metod
-  Widget _buildUserImage(String? imageUrl) {
+  Widget _buildUserImage(String imageUrl) {
     final url = _getValidImageUrl(imageUrl);
+    print("Resim yükleniyor: $url");
 
     return Image.network(
       url,
@@ -523,7 +817,19 @@ class _HomePageState extends State<HomePage> {
         print("Resim yüklenirken hata: $error");
         return Container(
           color: Colors.grey.shade300,
-          child: Icon(Icons.image_not_supported, size: 100, color: Colors.grey),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image, size: 60, color: Colors.grey),
+                SizedBox(height: 8),
+                Text(
+                  "Resim Yüklenemedi",
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -660,6 +966,8 @@ class _HomePageState extends State<HomePage> {
             icon: Icons.message,
             label: "Sohbet",
             isActive: false,
+            hasNotification: _unreadMessagesCount > 0,
+            notificationCount: _unreadMessagesCount,
             onTap: () {
               Navigator.push(
                 context,
@@ -712,6 +1020,8 @@ class _HomePageState extends State<HomePage> {
     required IconData icon,
     required String label,
     required bool isActive,
+    bool hasNotification = false,
+    int notificationCount = 0,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -719,18 +1029,64 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color:
-                  isActive ? Colors.red.withOpacity(0.1) : Colors.transparent,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              size: 26,
-              color: isActive ? Colors.red : Colors.grey,
-            ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color:
+                      isActive
+                          ? Colors.red.withOpacity(0.1)
+                          : Colors.transparent,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 26,
+                  color: isActive ? Colors.red : Colors.grey,
+                ),
+              ),
+              if (hasNotification)
+                Positioned(
+                  right: -5,
+                  top: -5,
+                  child: Container(
+                    padding: EdgeInsets.all(notificationCount > 9 ? 3 : 5),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape:
+                          notificationCount > 9
+                              ? BoxShape.rectangle
+                              : BoxShape.circle,
+                      borderRadius:
+                          notificationCount > 9
+                              ? BorderRadius.circular(10)
+                              : null,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    constraints: BoxConstraints(
+                      minWidth: notificationCount > 9 ? 18 : 15,
+                      minHeight: 15,
+                    ),
+                    child:
+                        notificationCount > 0
+                            ? Center(
+                              child: Text(
+                                notificationCount > 99
+                                    ? '99+'
+                                    : '$notificationCount',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: notificationCount > 9 ? 8 : 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                            : Container(),
+                  ),
+                ),
+            ],
           ),
           SizedBox(height: 4),
           Text(
@@ -837,5 +1193,106 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
     );
+  }
+
+  void _showClearHistoryDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text("Geçmişi Temizle"),
+            content: Text(
+              "Tüm eşleşme geçmişiniz (beğeniler, beğenmemeler ve super like'lar) silinecek. Böylece tüm kullanıcıları tekrar görüntüleyebilirsiniz. Bu işlem geri alınamaz.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text("İptal"),
+                style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _clearHistory();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text("Temizle"),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _clearHistory() async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
+
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        setState(() {
+          errorMessage = 'Oturum açmış kullanıcı bulunamadı';
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Kullanıcının tüm aksiyonlarını bul
+      final actionSnapshot =
+          await _firestore
+              .collection('userActions')
+              .where('userId', isEqualTo: currentUser.uid)
+              .get();
+
+      // Bir batch işlemi başlat
+      final batch = _firestore.batch();
+
+      // Her bir dökümanı sil
+      for (var doc in actionSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Batch işlemini gerçekleştir
+      await batch.commit();
+
+      print(
+        'Kullanıcının tüm aksiyonları başarıyla silindi: ${actionSnapshot.docs.length} aksiyon',
+      );
+
+      // Kullanıcıları tekrar yükle
+      await _loadUsers();
+
+      // Başarı mesajı göster
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Tüm eşleşme geçmişiniz temizlendi"),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Geçmiş temizlenirken bir hata oluştu: $e';
+        isLoading = false;
+      });
+
+      // Hata mesajı göster
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Geçmiş temizlenirken bir hata oluştu'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      print(errorMessage);
+    }
   }
 }

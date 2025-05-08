@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/profile_detail.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../ikon_icons.dart';
 import '../users.dart';
 import 'home_page.dart';
 import 'match_page.dart';
+import 'chat_detail_page.dart';
+import '../services/firebase_service.dart';
 
 class MessagePage extends StatefulWidget {
   const MessagePage({super.key});
@@ -13,7 +17,14 @@ class MessagePage extends StatefulWidget {
 }
 
 class _MessagePageState extends State<MessagePage> {
-  late List<ChatPreview> _chatPreviews;
+  late List<ChatPreview> _chatPreviews = [];
+  final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseService _firebaseService = FirebaseService();
+
+  bool _isLoading = true;
+  String _errorMessage = '';
+  List<Map<String, dynamic>> _matches = [];
 
   // Geçerli bir image URL oluşturmak için yardımcı metod
   String _getValidImageUrl(String? url) {
@@ -39,51 +50,249 @@ class _MessagePageState extends State<MessagePage> {
   @override
   void initState() {
     super.initState();
-    _initChatPreviews();
+    _loadMatches();
   }
 
-  void _initChatPreviews() {
-    // Users listesinden ChatPreview oluşturuyoruz
-    _chatPreviews = [];
+  // Tüm eşleşmelerdeki okunmamış mesajları okundu olarak işaretle
+  Future<void> _markAllMessagesAsRead() async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
 
-    final messages = [
-      "Merhaba, nasılsın?",
-      "Bugün buluşalım mı?",
-      "Harika bir gündü, teşekkürler!",
-      "Peki yarın nasıl?",
-      "Fotoğraflar için teşekkürler!",
-      "Selam, tanışabilir miyiz?",
-      "İyi akşamlar!",
-      "Film önerilerini bekliyorum!",
-      "Konser harika olacak!",
-    ];
+      // Okunmamış mesajları olan eşleşmeleri bul
+      final matchesQuery1 =
+          await _firestore
+              .collection('matches')
+              .where('user1Id', isEqualTo: currentUser.uid)
+              .where('hasUnreadMessages', isEqualTo: true)
+              .where('lastMessageSenderId', isNotEqualTo: currentUser.uid)
+              .get();
 
-    final times = [
-      "12:30",
-      "Dün",
-      "Dün",
-      "Sal",
-      "Pzt",
-      "Çrş",
-      "Per",
-      "Cum",
-      "Paz",
-    ];
+      final matchesQuery2 =
+          await _firestore
+              .collection('matches')
+              .where('user2Id', isEqualTo: currentUser.uid)
+              .where('hasUnreadMessages', isEqualTo: true)
+              .where('lastMessageSenderId', isNotEqualTo: currentUser.uid)
+              .get();
 
-    final random = DateTime.now().microsecond % 10;
+      // Eşleşmeleri birleştir
+      final matchDocs = [...matchesQuery1.docs, ...matchesQuery2.docs];
 
-    // Kullanıcı sayısı kadar sohbet oluşturuyoruz (maksimum 9 kullanıcı olacak şekilde)
-    for (int i = 0; i < users.length && i < 9; i++) {
-      _chatPreviews.add(
+      // Her bir eşleşme için okunmamış mesajları işaretle
+      for (var doc in matchDocs) {
+        final matchId = doc.id;
+        final batch = _firestore.batch();
+        bool hasUpdates = false;
+
+        // Okunmamış mesajları bul
+        final messagesSnapshot =
+            await _firestore
+                .collection('matches')
+                .doc(matchId)
+                .collection('messages')
+                .where('senderId', isNotEqualTo: currentUser.uid)
+                .where('read', isEqualTo: false)
+                .get();
+
+        // Her bir mesajı okundu olarak işaretle
+        for (var messageDoc in messagesSnapshot.docs) {
+          batch.update(messageDoc.reference, {'read': true});
+          hasUpdates = true;
+        }
+
+        // Eşleşmeyi güncelle
+        if (hasUpdates) {
+          batch.update(_firestore.collection('matches').doc(matchId), {
+            'hasUnreadMessages': false,
+          });
+
+          // Toplu güncelleme
+          await batch.commit();
+        }
+      }
+
+      print("Tüm mesajlar okundu olarak işaretlendi");
+    } catch (e) {
+      print("Mesajlar okundu olarak işaretlenirken hata: $e");
+    }
+  }
+
+  // Eşleşmeleri yükle
+  Future<void> _loadMatches() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        setState(() {
+          _errorMessage = 'Giriş yapmış kullanıcı bulunamadı';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Tüm mesajları okundu olarak işaretle
+      await _markAllMessagesAsRead();
+
+      // Kullanıcının eşleşmelerini bul (hem user1Id hem de user2Id olarak)
+      final matchesQuery1 =
+          await _firestore
+              .collection('matches')
+              .where('user1Id', isEqualTo: currentUser.uid)
+              .get();
+
+      final matchesQuery2 =
+          await _firestore
+              .collection('matches')
+              .where('user2Id', isEqualTo: currentUser.uid)
+              .get();
+
+      // Eşleşmeleri birleştir
+      final matchDocs = [...matchesQuery1.docs, ...matchesQuery2.docs];
+
+      // Eşleşen kullanıcıların bilgilerini topla
+      List<Map<String, dynamic>> matches = [];
+
+      for (var doc in matchDocs) {
+        final matchData = doc.data();
+        final matchId = doc.id;
+
+        // Eşleşen diğer kullanıcının ID'sini belirle
+        String otherUserId =
+            matchData['user1Id'] == currentUser.uid
+                ? matchData['user2Id']
+                : matchData['user1Id'];
+
+        // Okunmamış mesaj kontrolü
+        bool hasUnreadMessages = false;
+        int unreadCount = 0;
+
+        // Son mesajı gönderen karşı tarafsa ve okunmamış mesajlar varsa
+        if (matchData['lastMessageSenderId'] != null &&
+            matchData['lastMessageSenderId'] != currentUser.uid &&
+            matchData['hasUnreadMessages'] == true) {
+          hasUnreadMessages = true;
+
+          // Okunmamış mesaj sayısını bul
+          final messagesSnapshot =
+              await _firestore
+                  .collection('matches')
+                  .doc(matchId)
+                  .collection('messages')
+                  .where('senderId', isEqualTo: otherUserId)
+                  .where('read', isEqualTo: false)
+                  .get();
+
+          unreadCount = messagesSnapshot.docs.length;
+        }
+
+        // Diğer kullanıcının bilgilerini al
+        Map<String, dynamic>? userData = await _firebaseService.getUserData(
+          otherUserId,
+        );
+
+        if (userData != null) {
+          matches.add({
+            'matchId': matchId,
+            'userId': otherUserId,
+            'name': userData['name'],
+            'age': userData['age'],
+            'workplace': userData['workplace'],
+            'image':
+                userData['images'] != null && userData['images'].isNotEmpty
+                    ? userData['images'][0]
+                    : null,
+            'lastMessage': matchData['lastMessage'] ?? '',
+            'lastMessageTime': matchData['lastMessageTime'],
+            'createdAt': matchData['createdAt'],
+            'hasUnreadMessages': hasUnreadMessages,
+            'unreadCount': unreadCount,
+          });
+        }
+      }
+
+      // Tarihe göre sırala (en son mesaj gönderilen en üstte)
+      matches.sort((a, b) {
+        if (a['lastMessageTime'] == null && b['lastMessageTime'] == null) {
+          // İki eşleşmede de mesaj yoksa, oluşturulma tarihine göre sırala
+          if (a['createdAt'] == null || b['createdAt'] == null) return 0;
+          return (b['createdAt'] as Timestamp).compareTo(
+            a['createdAt'] as Timestamp,
+          );
+        } else if (a['lastMessageTime'] == null) {
+          return 1; // a'da mesaj yoksa b önce gelsin
+        } else if (b['lastMessageTime'] == null) {
+          return -1; // b'de mesaj yoksa a önce gelsin
+        }
+        // İki eşleşmede de mesaj varsa, son mesaj tarihine göre sırala
+        return (b['lastMessageTime'] as Timestamp).compareTo(
+          a['lastMessageTime'] as Timestamp,
+        );
+      });
+
+      setState(() {
+        _matches = matches;
+        _isLoading = false;
+      });
+
+      print("${matches.length} eşleşme yüklendi");
+
+      // Yeni eşleşmeler için ChatPreview oluştur
+      _createChatPreviews();
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Eşleşmeleriniz yüklenirken hata oluştu: $e';
+        _isLoading = false;
+      });
+      print(_errorMessage);
+    }
+  }
+
+  // Eşleşmelerden ChatPreview nesneleri oluştur
+  void _createChatPreviews() {
+    List<ChatPreview> previews = [];
+
+    for (var match in _matches) {
+      final lastMessageTime = match['lastMessageTime'] as Timestamp?;
+      String timeString = "Yeni";
+
+      if (lastMessageTime != null) {
+        final now = DateTime.now();
+        final messageTime = lastMessageTime.toDate();
+        final difference = now.difference(messageTime);
+
+        if (difference.inMinutes < 60) {
+          timeString = "${difference.inMinutes}d";
+        } else if (difference.inHours < 24) {
+          timeString = "${difference.inHours}s";
+        } else if (difference.inDays < 7) {
+          final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+          timeString = days[messageTime.weekday - 1];
+        } else {
+          timeString = "${messageTime.day}/${messageTime.month}";
+        }
+      }
+
+      previews.add(
         ChatPreview(
-          name: users[i].name ?? 'İsimsiz',
-          lastMessage: messages[i % messages.length],
-          time: times[i % times.length],
-          imageUrl: _getValidImageUrl(users[i].imagePath),
-          unreadCount: (i == 0 || i == random % users.length) ? (i % 3) + 1 : 0,
+          matchId: match['matchId'],
+          userId: match['userId'],
+          name: "${match['name'] ?? 'İsimsiz'}, ${match['age'] ?? '?'}",
+          lastMessage: match['lastMessage'] ?? 'Henüz mesaj yok',
+          time: timeString,
+          imageUrl: _getValidImageUrl(match['image']),
+          unreadCount: match['unreadCount'] ?? 0,
         ),
       );
     }
+
+    setState(() {
+      _chatPreviews = previews;
+    });
   }
 
   @override
@@ -116,106 +325,125 @@ class _MessagePageState extends State<MessagePage> {
                 letterSpacing: 0.5,
               ),
             ),
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey.shade100,
-              ),
-              child: Icon(Icons.search, color: Colors.grey[800], size: 22),
+            IconButton(
+              icon: Icon(Icons.refresh),
+              onPressed: _loadMatches,
+              color: Colors.grey[800],
             ),
           ],
         ),
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.white, Colors.grey.shade50],
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                "Yeni Eşleşmeler",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-            Container(
-              height: 100,
-              child: ListView.builder(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                scrollDirection: Axis.horizontal,
-                itemCount: users.length > 6 ? 6 : users.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.red, width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 8,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: _buildUserImage(users[index].imagePath),
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          users[index].name ?? 'İsimsiz',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator(color: Colors.red))
+              : _errorMessage.isNotEmpty
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red, size: 60),
+                    SizedBox(height: 16),
+                    Text(
+                      _errorMessage,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.red[700], fontSize: 16),
                     ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                "Mesajlar",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                    SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _loadMatches,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text("Tekrar Dene"),
+                    ),
+                  ],
                 ),
+              )
+              : Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.white, Colors.grey.shade50],
+                  ),
+                ),
+                child:
+                    _matches.isEmpty
+                        ? _buildEmptyState()
+                        : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                              child: Text(
+                                "Eşleşmelerim",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: ListView.builder(
+                                itemCount: _chatPreviews.length,
+                                itemBuilder: (context, index) {
+                                  return buildChatPreviewItem(
+                                    _chatPreviews[index],
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
               ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _chatPreviews.length,
-                itemBuilder: (context, index) {
-                  return buildChatPreviewItem(_chatPreviews[index]);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
       bottomNavigationBar: buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.chat_bubble_outline, color: Colors.grey, size: 80),
+          SizedBox(height: 20),
+          Text(
+            "Henüz mesajlaşabileceğin bir eşleşmen yok!",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade700,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 8),
+          Text(
+            "Daha fazla kişiyi beğendiğinde ve onlar da seni beğendiğinde burada eşleşmelerini göreceksin.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const HomePage()),
+              );
+            },
+            icon: Icon(Icons.favorite),
+            label: Text("Keşfetmeye Başla"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -236,11 +464,29 @@ class _MessagePageState extends State<MessagePage> {
       ),
       child: ListTile(
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(shape: BoxShape.circle),
-          child: ClipOval(child: _buildUserImage(chat.imageUrl)),
+        leading: Stack(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(shape: BoxShape.circle),
+              child: ClipOval(child: _buildUserImage(chat.imageUrl)),
+            ),
+            if (chat.unreadCount > 0)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+          ],
         ),
         title: Row(
           children: [
@@ -270,6 +516,10 @@ class _MessagePageState extends State<MessagePage> {
                         chat.unreadCount > 0
                             ? FontWeight.w500
                             : FontWeight.normal,
+                    fontStyle:
+                        chat.lastMessage == 'Henüz mesaj yok'
+                            ? FontStyle.italic
+                            : FontStyle.normal,
                   ),
                 ),
               ),
@@ -294,7 +544,22 @@ class _MessagePageState extends State<MessagePage> {
           ),
         ),
         onTap: () {
-          // Chat detayına gidecek
+          // Chat detayına git
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => ChatDetailPage(
+                    matchId: chat.matchId,
+                    userId: chat.userId,
+                    userName: chat.name,
+                    userImage: chat.imageUrl,
+                  ),
+            ),
+          ).then((_) {
+            // Geri döndüğünde mesajları yenile
+            _loadMatches();
+          });
         },
       ),
     );
@@ -359,21 +624,17 @@ class _MessagePageState extends State<MessagePage> {
             label: "Profil",
             isActive: false,
             onTap: () {
-              // Hakkı'nın profiline git
-              int hakkiIndex = users.indexWhere((user) => user.name == "Hakkı");
-              // Hakkı bulunamazsa rastgele bir profil göster
-              final userIndex =
-                  hakkiIndex != -1
-                      ? hakkiIndex
-                      : (users.isEmpty
-                          ? 0
-                          : DateTime.now().millisecond % users.length);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfileDetail(userIndex: userIndex),
-                ),
-              );
+              // Profil sayfasına git (mevcut kullanıcı için)
+              final currentUser = _auth.currentUser;
+              if (currentUser != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => ProfileDetail(userId: currentUser.uid),
+                  ),
+                );
+              }
             },
           ),
         ],
@@ -450,6 +711,8 @@ class _MessagePageState extends State<MessagePage> {
 }
 
 class ChatPreview {
+  final String matchId;
+  final String userId;
   final String name;
   final String lastMessage;
   final String time;
@@ -457,6 +720,8 @@ class ChatPreview {
   final int unreadCount;
 
   ChatPreview({
+    required this.matchId,
+    required this.userId,
     required this.name,
     required this.lastMessage,
     required this.time,
