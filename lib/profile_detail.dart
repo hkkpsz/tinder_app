@@ -461,8 +461,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
         children: [
           SizedBox(height: 8),
           Text(
-            aboutMe ??
-                "Merhaba! Ben bir yazılım geliştiricisiyim ve bilgisayara bayılırım. Yeni insanlarla tanışmayı ve farklı kültürleri keşfetmeyi seviyorum.",
+            aboutMe ?? "Merhaba! Ben SyncMe Kullanıcısıyım.",
             style: TextStyle(fontSize: 16, color: Colors.black87, height: 1.4),
           ),
         ],
