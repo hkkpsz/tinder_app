@@ -1,16 +1,37 @@
-# ucanble_tinder
+# 💞 SyncMe – Tinder Tarzı Eşleşme Uygulaması
 
-A new Flutter project.
+**SyncMe**, kullanıcıların birbirleriyle eşleşmesini sağlayan, Flutter ile geliştirilmiş modern bir mobil tanışma uygulamasıdır. Kartları sağa, sola ve yukarı kaydırarak etkileşim kurma imkânı sunar. Veriler Firebase üzerinden yönetilir, resimler ise Cloudinary ile güvenli ve hızlı bir şekilde sunulur.
 
-## Getting Started
+## ✨ Özellikler
 
-This project is a starting point for a Flutter application.
+- 🔥 Tinder benzeri swipe (kaydırma) kart yapısı
+- 📤 Kullanıcı fotoğraf yükleme (Cloudinary üzerinden)
+- 🔐 Firebase Authentication ile güvenli kayıt & giriş
+- ☁️ Firebase Firestore ile kullanıcı verisi saklama
+- 🎯 Eşleşme mantığı: her iki taraf da sağa kaydırınca eşleşme
+- 💬 Mesajlaşma altyapısına hazır mimari
+- 🖼️ Profil kartlarında yaş, çalıştığı yer, isim ve fotoğraf gösterimi
 
-A few resources to get you started if this is your first Flutter project:
+## 🧑‍💻 Kullanılan Teknolojiler
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Flutter
+- Dart
+- Firebase Auth & Firestore
+- Cloudinary (resim depolama)
+- `flutter_tindercard` veya `flutter_card_swiper` paketi
+- Provider / Riverpod (state management - tercihe göre)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📸 Ekran Görüntüleri
+
+<p float="left">
+  <img src="assets/screenshots/icon.png" width="250"/>
+  <img src="assets/screenshots/icontwo.png" width="250"/>
+</p>
+
+## 🛠️ Kurulum
+
+```bash
+git clone https://github.com/kullanici-adi/syncme.git
+cd syncme
+flutter pub get
+flutter run
