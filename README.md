@@ -24,7 +24,7 @@
 ## 🛠️ Kurulum
 
 ```bash
-git clone https://github.com/kullanici-adi/syncme.git
+git clone https://github.com/hkkpsz/syncme.git
 cd syncme
 flutter pub get
 flutter run
