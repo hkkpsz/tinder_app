@@ -1,16 +1,28 @@
-# ucanble_tinder
+# 🌞 Güneş Pusulası
 
-A new Flutter project.
+Güneş Pusulası, Flutter ile geliştirilmiş, kullanıcının bulunduğu konuma göre güneşin doğuş ve batış yönünü gösteren, aynı zamanda kuzey-güney yönlerini de hassas biçimde işaret eden bir mobil pusula uygulamasıdır.
 
-## Getting Started
+## 🚀 Özellikler
 
-This project is a starting point for a Flutter application.
+- 📍 GPS tabanlı konum belirleme
+- 🧭 Cihazın sensörleri ile gerçek zamanlı pusula yönü
+- 🌅 Güneşin doğuş ve batış yönünü görsel olarak gösterme
+- 📱 Modern, sade ve kullanıcı dostu arayüz
+- 🔋 Düşük batarya tüketimi
+- 🇹🇷 Türkçe dil desteği
 
-A few resources to get you started if this is your first Flutter project:
+## 🧑‍💻 Teknolojiler
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Flutter
+- Dart
+- Sensors (Flutter sensor packages)
+- Geolocator / Location
+- CustomPaint (görsel yön çizimleri için)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🛠️ Kurulum
+
+bash
+git clone https://github.com/kullanici-adi/gunes-pusulasi.git
+cd gunes-pusulasi
+flutter pub get
+flutter run
