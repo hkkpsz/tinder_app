@@ -324,7 +324,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
                             ],
                           ),
                           child: Text(
-                            "Devam etmek için minimum 2 fotoğraf eklemelisiniz.",
+                            "Devam etmek için minimum 1 fotoğraf eklemelisiniz.",
                             style: TextStyle(
                               color: Colors.grey.shade700,
                               fontSize: 15,

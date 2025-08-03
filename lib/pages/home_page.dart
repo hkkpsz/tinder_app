@@ -423,20 +423,20 @@ class _HomePageState extends State<HomePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Colors.red.shade300, Colors.redAccent.shade700],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Icon(Ikon.think_peaks, color: Colors.white, size: 24),
-            ),
+            // Container(
+            //   padding: EdgeInsets.all(8),
+            //   decoration: BoxDecoration(
+            //     shape: BoxShape.circle,
+            //     gradient: LinearGradient(
+            //       colors: [Colors.red.shade300, Colors.redAccent.shade700],
+            //       begin: Alignment.topLeft,
+            //       end: Alignment.bottomRight,
+            //     ),
+            //   ),
+            //   child: Icon(Ikon.think_peaks, color: Colors.white, size: 24),
+            // ),
             Text(
-              "Tinder",
+              "SnycMe",
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,

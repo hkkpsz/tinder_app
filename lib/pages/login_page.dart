@@ -1,11 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:ucanble_tinder/pages/home_page.dart';
-import 'package:ucanble_tinder/pages/upload_cv.dart';
 import 'package:ucanble_tinder/services/database.dart';
 import 'package:ucanble_tinder/pages/sign_up.dart';
 import 'package:ucanble_tinder/services/auth_service.dart';
-import 'package:ucanble_tinder/pages/upload_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
@@ -138,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
                             SizedBox(height: 16),
 
                             Text(
-                              "UCANBLE",
+                              "SyncMe",
                               style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
@@ -344,40 +342,40 @@ class _LoginPageState extends State<LoginPage> {
                             SizedBox(height: 20),
 
                             // Alternatif giriş yöntemleri
-                            Row(
-                              children: [
-                                Expanded(child: Divider(thickness: 1)),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 15),
-                                  child: Text(
-                                    "VEYA",
-                                    style: TextStyle(
-                                      color: Colors.grey.shade700,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(child: Divider(thickness: 1)),
-                              ],
-                            ),
-
-                            SizedBox(height: 16),
-
-                            // Sosyal medya butonları
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _buildSocialButton(Icons.mail, Colors.red),
-                                SizedBox(width: 20),
-                                _buildSocialButton(Icons.facebook, Colors.blue),
-                                SizedBox(width: 20),
-                                _buildSocialButton(
-                                  Icons.g_mobiledata,
-                                  Colors.green,
-                                ),
-                              ],
-                            ),
+                            // Row(
+                            //   children: [
+                            //     Expanded(child: Divider(thickness: 1)),
+                            //     Padding(
+                            //       padding: EdgeInsets.symmetric(horizontal: 15),
+                            //       child: Text(
+                            //         "VEYA",
+                            //         style: TextStyle(
+                            //           color: Colors.grey.shade700,
+                            //           fontSize: 12,
+                            //           fontWeight: FontWeight.bold,
+                            //         ),
+                            //       ),
+                            //     ),
+                            //     Expanded(child: Divider(thickness: 1)),
+                            //   ],
+                            // ),
+                            //
+                            // SizedBox(height: 16),
+                            //
+                            // // Sosyal medya butonları
+                            // Row(
+                            //   mainAxisAlignment: MainAxisAlignment.center,
+                            //   children: [
+                            //     _buildSocialButton(Icons.mail, Colors.red),
+                            //     SizedBox(width: 20),
+                            //     _buildSocialButton(Icons.facebook, Colors.blue),
+                            //     SizedBox(width: 20),
+                            //     _buildSocialButton(
+                            //       Icons.g_mobiledata,
+                            //       Colors.green,
+                            //     ),
+                            //   ],
+                            // ),
                           ],
                         ),
                       ),
