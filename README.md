@@ -1,28 +1,30 @@
-# 🌞 Güneş Pusulası
+# 💞 SyncMe – Tinder Tarzı Eşleşme Uygulaması
 
-Güneş Pusulası, Flutter ile geliştirilmiş, kullanıcının bulunduğu konuma göre güneşin doğuş ve batış yönünü gösteren, aynı zamanda kuzey-güney yönlerini de hassas biçimde işaret eden bir mobil pusula uygulamasıdır.
+**SyncMe**, kullanıcıların birbirleriyle eşleşmesini sağlayan, Flutter ile geliştirilmiş modern bir mobil tanışma uygulamasıdır. Kartları sağa, sola ve yukarı kaydırarak etkileşim kurma imkânı sunar. Veriler Firebase üzerinden yönetilir, resimler ise Cloudinary ile güvenli ve hızlı bir şekilde sunulur.
 
-## 🚀 Özellikler
+## ✨ Özellikler
 
-- 📍 GPS tabanlı konum belirleme
-- 🧭 Cihazın sensörleri ile gerçek zamanlı pusula yönü
-- 🌅 Güneşin doğuş ve batış yönünü görsel olarak gösterme
-- 📱 Modern, sade ve kullanıcı dostu arayüz
-- 🔋 Düşük batarya tüketimi
-- 🇹🇷 Türkçe dil desteği
+- 🔥 Tinder benzeri swipe (kaydırma) kart yapısı
+- 📤 Kullanıcı fotoğraf yükleme (Cloudinary üzerinden)
+- 🔐 Firebase Authentication ile güvenli kayıt & giriş
+- ☁️ Firebase Firestore ile kullanıcı verisi saklama
+- 🎯 Eşleşme mantığı: her iki taraf da sağa kaydırınca eşleşme
+- 💬 Mesajlaşma altyapısına hazır mimari
+- 🖼️ Profil kartlarında yaş, çalıştığı yer, isim ve fotoğraf gösterimi
 
-## 🧑‍💻 Teknolojiler
+## 🧑‍💻 Kullanılan Teknolojiler
 
 - Flutter
 - Dart
-- Sensors (Flutter sensor packages)
-- Geolocator / Location
-- CustomPaint (görsel yön çizimleri için)
+- Firebase Auth & Firestore
+- Cloudinary (resim depolama)
+- `flutter_tindercard` veya `flutter_card_swiper` paketi
+- Provider / Riverpod (state management - tercihe göre)
 
 ## 🛠️ Kurulum
 
-bash
-git clone https://github.com/kullanici-adi/gunes-pusulasi.git
-cd gunes-pusulasi
+```bash
+git clone https://github.com/kullanici-adi/syncme.git
+cd syncme
 flutter pub get
 flutter run
